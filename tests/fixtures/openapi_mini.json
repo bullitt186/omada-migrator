@@ -1,0 +1,228 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Test Omada API",
+    "version": "v0.1"
+  },
+  "paths": {
+    "/openapi/v1/{omadacId}/sites/{siteId}/setting/lan/networks": {
+      "get": {
+        "operationId": "getNetworks",
+        "parameters": [
+          {
+            "name": "omadacId",
+            "in": "path"
+          },
+          {
+            "name": "siteId",
+            "in": "path"
+          },
+          {
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkListResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createNetwork",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetworkVO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/sites/{siteId}/setting/lan/networks/{id}": {
+      "get": {
+        "operationId": "getNetwork",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {}
+        }
+      },
+      "put": {
+        "operationId": "updateNetwork",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetworkVO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      },
+      "delete": {
+        "operationId": "deleteNetwork",
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans/{wlanId}/ssids": {
+      "get": {
+        "operationId": "getSsids",
+        "parameters": [
+          {
+            "name": "wlanId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {}
+        }
+      },
+      "post": {
+        "operationId": "createSsid",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsidVO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans/{wlanId}/ssids/{ssidId}": {
+      "put": {
+        "operationId": "updateSsid",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsidVO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      },
+      "delete": {
+        "operationId": "deleteSsid",
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/sites/{siteId}/applicationControl/applications": {
+      "get": {
+        "operationId": "getApplications",
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/devices": {
+      "get": {
+        "operationId": "getAllDevices",
+        "responses": {
+          "200": {}
+        }
+      },
+      "post": {
+        "operationId": "addDevice",
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/openapi/v1/{omadacId}/sites/{siteId}/setting/lan/dhcp": {
+      "get": {
+        "operationId": "getDhcpSetting",
+        "responses": {
+          "200": {}
+        }
+      },
+      "put": {
+        "operationId": "updateDhcpSetting",
+        "responses": {
+          "200": {}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NetworkVO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "vlanId": {
+            "type": "integer"
+          },
+          "subnet": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        }
+      },
+      "SsidVO": {
+        "type": "object",
+        "properties": {
+          "ssidId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ssid": {
+            "type": "string"
+          },
+          "band": {
+            "type": "integer"
+          },
+          "networkId": {
+            "type": "string"
+          }
+        }
+      },
+      "NetworkListResp": {
+        "type": "object"
+      }
+    }
+  }
+}

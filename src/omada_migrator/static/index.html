@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omada Migrator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+h1 { margin-bottom: 20px; color: #1a1a1a; }
+h2 { margin: 20px 0 10px; color: #333; font-size: 1.2em; }
+.card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+.tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+button { background: #1976d2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+button:hover { background: #1565c0; }
+button.danger { background: #d32f2f; }
+button.danger:hover { background: #b71c1c; }
+button.secondary { background: #757575; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+input, select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; margin-bottom: 8px; }
+label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 500; }
+.form-row { margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: #e8f5e9; color: #2e7d32; }
+.badge-error { background: #ffebee; color: #c62828; }
+.badge-unsupported { background: #fff3e0; color: #e65100; }
+.badge-mismatch { background: #fff3e0; color: #e65100; }
+.diff-item { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; margin-bottom: 8px; }
+.diff-item.identical { opacity: 0.6; }
+.diff-item.differs { border-left: 3px solid #ff9800; }
+.diff-item.source-only { border-left: 3px solid #4caf50; }
+.diff-item.target-only { border-left: 3px solid #f44336; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; }
+.checkbox-row input[type=checkbox] { width: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; }
+th { background: #fafafa; font-weight: 600; font-size: 13px; }
+.resource-group { margin-bottom: 16px; }
+.resource-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px; background: #fafafa; border-radius: 4px; }
+.resource-header:hover { background: #f0f0f0; }
+.resource-summary { font-size: 12px; color: #666; font-style: italic; margin-left: 8px; }
+.hidden { display: none; }
+.status-bar { padding: 10px 16px; border-radius: 4px; margin-bottom: 12px; }
+.status-bar.info { background: #e3f2fd; color: #1565c0; }
+.status-bar.success { background: #e8f5e9; color: #2e7d32; }
+.status-bar.error { background: #ffebee; color: #c62828; }
+.status-bar.warning { background: #fff3e0; color: #e65100; }
+.progress-bar { width: 100%; height: 24px; background: #e0e0e0; border-radius: 12px; overflow: hidden; margin: 8px 0; }
+.progress-fill { height: 100%; background: #1976d2; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; min-width: 30px; }
+.progress-label { font-size: 13px; color: #555; margin-top: 4px; }
+.plan-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f0f0f0; }
+.plan-item .op { font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.plan-item .op.create { color: #2e7d32; }
+.plan-item .op.update { color: #f57c00; }
+.plan-item .op.delete { color: #c62828; }
+.toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.version-info { display: flex; gap: 24px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.version-info .label { color: #666; }
+.version-info .value { font-weight: 600; }
+.version-mismatch { border: 1px solid #ff9800; background: #fff8e1; }
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 24px; padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.step { display: flex; align-items: center; gap: 8px; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #e0e0e0; color: #666; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+.step.active .step-num { background: #1976d2; color: #fff; }
+.step.done .step-num { background: #4caf50; color: #fff; }
+.step-label { font-size: 13px; color: #666; }
+.step.active .step-label { color: #1976d2; font-weight: 600; }
+.step.done .step-label { color: #4caf50; }
+.step-connector { flex: 1; height: 2px; background: #e0e0e0; margin: 0 12px; }
+.step-connector.done { background: #4caf50; }
+.field-desc { font-size: 11px; color: #888; margin-left: 4px; }
+.diff-field-table { width: 100%; font-size: 12px; margin-top: 8px; }
+.diff-field-table td { padding: 4px 8px; vertical-align: top; }
+.diff-field-table .field-name { font-weight: 600; color: #555; white-space: nowrap; }
+.diff-field-table .val-source { background: #e8f5e9; border-radius: 3px; padding: 2px 6px; word-break: break-all; }
+.diff-field-table .val-target { background: #ffebee; border-radius: 3px; padding: 2px 6px; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Omada Migrator</h1>
+
+<div class="tabs">
+  <button class="tab active" data-tab="profiles">Profiles</button>
+  <button class="tab" data-tab="migrate">Migrate</button>
+  <button class="tab" data-tab="devices">Devices</button>
+  <button class="tab" data-tab="snapshots">Snapshots</button>
+</div>
+
+<!-- Profiles Tab -->
+<div class="tab-content active" id="tab-profiles">
+  <div class="card">
+    <h2>Controller Profiles</h2>
+    <div id="profile-list"></div>
+    <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+    <h2>Add Profile</h2>
+    <form id="profile-form">
+      <div class="form-grid">
+        <div class="form-row"><label>Name</label><input name="name" required></div>
+        <div class="form-row"><label>Type</label>
+          <select name="type" id="profile-type">
+            <option value="local">Local</option>
+            <option value="cloud">Cloud</option>
+            <option value="fusion">Fusion</option>
+          </select>
+        </div>
+        <div class="form-row"><label>URL</label><input name="url" placeholder="https://192.168.1.100:8043" required></div>
+        <div class="form-row"><label><input type="checkbox" name="insecure_tls" style="width:auto"> Allow self-signed TLS</label></div>
+      </div>
+      <div id="classic-fields">
+        <div class="form-grid">
+          <div class="form-row"><label>Omada Controller ID</label><input name="omadac_id"></div>
+          <div class="form-row"><label>Client ID</label><input name="client_id"></div>
+          <div class="form-row"><label>Client Secret</label><input name="client_secret" type="password"></div>
+        </div>
+      </div>
+      <div id="fusion-fields" class="hidden">
+        <div class="form-grid">
+          <div class="form-row"><label>Username</label><input name="username"></div>
+          <div class="form-row"><label>Password</label><input name="password" type="password"></div>
+        </div>
+      </div>
+      <button type="submit">Add Profile</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>OpenAPI Spec</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px">The tool uses an OpenAPI spec to discover resources. Controllers don't serve their spec — import a newer one from the <a href="https://www.tp-link.com/support/download/omada-software-controller/" target="_blank" rel="noopener">TP-Link download page</a> (included in the controller package as <code>openapi.json</code>).</p>
+    <div id="spec-list"></div>
+    <div style="margin-top:12px">
+      <label>Import Spec from File</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="spec-import-path" placeholder="/path/to/openapi.json" style="flex:1">
+        <input id="spec-import-label" placeholder="Label (optional)" style="width:200px">
+        <button id="btn-import-spec">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Migrate Tab (Stepper) -->
+<div class="tab-content" id="tab-migrate">
+  <div class="stepper" id="migrate-stepper">
+    <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Source</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Target</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Compare</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Execute</span></div>
+  </div>
+
+  <!-- Step 1: Source -->
+  <div class="migrate-step" id="mstep-1">
+    <div class="card">
+      <h2>Step 1: Select Source</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Choose a snapshot from a previously read controller, or read a new one.</p>
+      <div class="form-grid">
+        <div>
+          <label>Use Existing Snapshot</label>
+          <select id="m-source-snapshot"><option value="">-- Select snapshot --</option></select>
+          <button id="btn-m-use-snapshot" style="margin-top:4px">Use Snapshot</button>
+        </div>
+        <div style="border-left: 1px solid #eee; padding-left: 12px;">
+          <label>Or Read From Controller</label>
+          <select id="m-source-profile"></select>
+          <select id="m-source-site"><option value="">Load sites first</option></select>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button id="btn-m-load-source-sites" class="secondary">Load Sites</button>
+            <button id="btn-m-read-source">Read</button>
+          </div>
+        </div>
+      </div>
+      <div id="m-source-status" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- Step 2: Target -->
+  <div class="migrate-step hidden" id="mstep-2">
+    <div id="m-version-display"></div>
+    <div class="card">
+      <h2>Step 2: Select Target</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Choose the target controller and site to migrate to.</p>
+      <div class="form-grid">
+        <div class="form-row"><label>Target Profile</label><select id="m-target-profile"></select></div>
+        <div class="form-row"><label>Target Site</label><select id="m-target-site"><option value="">Load sites first</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="btn-m-load-target-sites" class="secondary">Load Sites</button>
+        <button id="btn-m-diff">Compare</button>
+      </div>
+      <div id="m-target-status" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Compare -->
+  <div class="migrate-step hidden" id="mstep-3">
+    <div id="m-version-compare"></div>
+    <div class="card">
+      <h2>Step 3: Review Differences</h2>
+      <div id="m-diff-progress"></div>
+      <div id="m-diff-results" class="hidden">
+        <div class="toggle">
+          <label><input type="checkbox" id="m-hide-identical" checked> Hide identical</label>
+          <label style="margin-left:16px"><input type="checkbox" id="m-show-details"> Show field details</label>
+        </div>
+        <div id="m-diff-content"></div>
+      </div>
+    </div>
+    <div id="m-plan-section" class="hidden card">
+      <h2>Write Plan</h2>
+      <div id="m-plan-preview"></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button id="btn-m-execute">Execute Plan</button>
+        <button id="btn-m-back-to-diff" class="secondary">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Execute -->
+  <div class="migrate-step hidden" id="mstep-4">
+    <div class="card">
+      <h2>Step 4: Execution</h2>
+      <div class="progress-bar"><div class="progress-fill" id="m-exec-progress" style="width:0%">0%</div></div>
+      <div class="progress-label" id="m-exec-label">Starting...</div>
+      <div id="m-exec-log" style="max-height:300px;overflow:auto;font-size:12px;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Devices Tab -->
+<div class="tab-content" id="tab-devices">
+  <div class="card">
+    <h2>Device Migration</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px">Move devices between controllers: forget from source, then adopt on target. Do this <strong>before</strong> migrating device-specific settings.</p>
+    <div class="status-bar warning" style="font-size:12px">Devices must be able to reach the target controller over the network (same subnet or routed). If source and target are on different subnets, ensure devices can reach the target's IP before migrating.</div>
+    <div class="form-grid">
+      <div>
+        <h2 style="margin-top:0">Source</h2>
+        <div class="form-row"><label>Profile</label><select id="dev-source-profile"></select></div>
+        <div class="form-row"><label>Site</label><select id="dev-source-site"></select></div>
+        <button id="btn-dev-load-source-sites">Load Sites</button>
+        <button id="btn-dev-list-source" style="margin-left:8px">List Devices</button>
+      </div>
+      <div>
+        <h2 style="margin-top:0">Target</h2>
+        <div class="form-row"><label>Profile</label><select id="dev-target-profile"></select></div>
+        <div class="form-row"><label>Site</label><select id="dev-target-site"></select></div>
+        <button id="btn-dev-load-target-sites">Load Sites</button>
+        <button id="btn-dev-list-pending" style="margin-left:8px">List Pending</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dev-source-devices" class="hidden card">
+    <h2>Source Devices (Adopted)</h2>
+    <div id="dev-source-table"></div>
+    <div style="margin-top:12px">
+      <p style="font-size:12px;color:#666;margin-bottom:4px"><strong>Source credentials</strong> (auto-fetched — override only if source device-account doesn't match devices):</p>
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="form-row"><label>Source Device Username</label><input id="dev-credentials-user" placeholder="auto-detect from source"></div>
+        <div class="form-row"><label>Source Device Password</label><input id="dev-credentials-pass" type="password" placeholder="auto-detect from source"></div>
+      </div>
+      <p style="font-size:12px;color:#666;margin-bottom:4px"><strong>Target credentials</strong> (optional — if set, devices will end up with these new credentials after adoption):</p>
+      <div class="form-grid" style="margin-bottom:8px">
+        <div class="form-row"><label>New Device Username</label><input id="dev-target-creds-user" placeholder="leave empty = use source credentials"></div>
+        <div class="form-row"><label>New Device Password</label><input id="dev-target-creds-pass" type="password" placeholder="leave empty = use source credentials"></div>
+      </div>
+      <button id="btn-dev-forget" class="danger">Forget Selected & Adopt on Target</button>
+    </div>
+  </div>
+
+  <div id="dev-target-devices" class="hidden card">
+    <h2>Target Pending Devices</h2>
+    <div id="dev-target-table"></div>
+    <div style="margin-top:12px">
+      <p style="font-size:12px;color:#666;margin-bottom:8px">Enter the device's current SSH credentials (from the controller that previously managed it):</p>
+      <div class="form-grid" style="margin-bottom:8px">
+        <div class="form-row"><label>Device Username</label><input id="dev-adopt-user" placeholder="admin"></div>
+        <div class="form-row"><label>Device Password</label><input id="dev-adopt-pass" type="password"></div>
+      </div>
+      <button id="btn-dev-adopt">Adopt Selected on Target</button>
+    </div>
+  </div>
+
+  <div id="dev-status" class="hidden card">
+    <h2>Migration Status</h2>
+    <div id="dev-status-log" style="max-height:400px;overflow:auto"></div>
+  </div>
+</div>
+
+<!-- Snapshots Tab -->
+<div class="tab-content" id="tab-snapshots">
+  <div class="card">
+    <h2>Saved Snapshots</h2>
+    <div id="snapshot-list"></div>
+  </div>
+  <div id="snapshot-detail" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="snapshot-detail-title"></h2>
+        <button class="secondary" onclick="closeSnapshotDetail()">Close</button>
+      </div>
+      <div id="snapshot-meta" style="margin:8px 0;font-size:13px;color:#666"></div>
+      <div class="toggle"><label><input type="checkbox" id="snap-hide-empty" checked> Hide empty resources</label></div>
+      <div id="snapshot-resources"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const API = '';
+let schemaMeta = {};
+
+// Load schema metadata once
+fetch(API + '/api/schema-meta').then(r => r.json()).then(d => { schemaMeta = d; }).catch(() => {});
+
+// Tab navigation
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'snapshots') loadSnapshots();
+    if (tab.dataset.tab === 'migrate') initMigrateTab();
+    if (tab.dataset.tab === 'devices') loadProfileSelects();
+  });
+});
+
+// Profile type toggle
+document.getElementById('profile-type').addEventListener('change', (e) => {
+  document.getElementById('classic-fields').classList.toggle('hidden', e.target.value === 'fusion');
+  document.getElementById('fusion-fields').classList.toggle('hidden', e.target.value !== 'fusion');
+});
+
+// Load profiles
+async function loadProfiles() {
+  const resp = await fetch(API + '/api/profiles');
+  const profiles = await resp.json();
+  const list = document.getElementById('profile-list');
+  if (!profiles.length) { list.innerHTML = '<p style="color:#999">No profiles configured.</p>'; return; }
+  list.innerHTML = '<table><tr><th>Name</th><th>Type</th><th>URL</th><th></th></tr>' +
+    profiles.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.url}</td><td><button class="danger" onclick="deleteProfile('${p.name}')">Delete</button></td></tr>`).join('') +
+    '</table>';
+}
+
+async function deleteProfile(name) {
+  if (!confirm('Delete profile "' + name + '"?')) return;
+  await fetch(API + '/api/profiles/' + encodeURIComponent(name), {method: 'DELETE'});
+  loadProfiles();
+}
+
+document.getElementById('profile-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  data.insecure_tls = !!data.insecure_tls;
+  Object.keys(data).forEach(k => { if (data[k] === '') delete data[k]; });
+  await fetch(API + '/api/profiles', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+  e.target.reset();
+  loadProfiles();
+});
+
+// Populate profile selects
+async function loadProfileSelects() {
+  const resp = await fetch(API + '/api/profiles');
+  const profiles = await resp.json();
+  const opts = profiles.map(p => `<option value="${p.name}">${p.name} (${p.type})</option>`).join('');
+  ['m-source-profile', 'm-target-profile', 'dev-source-profile', 'dev-target-profile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  // Load snapshots for source selector
+  const sr = await fetch(API + '/api/snapshots');
+  const snaps = await sr.json();
+  const snapEl = document.getElementById('m-source-snapshot');
+  if (snapEl) snapEl.innerHTML = '<option value="">-- Select snapshot --</option>' + snaps.map(s => `<option value="${s.path}">${s.name}</option>`).join('');
+}
+
+// --- Migrate Tab (Stepper) ---
+
+let migrateState = { step: 1, sourceSnapshot: null, sourceInfo: null, targetInfo: null };
+let currentDiff = null;
+let selectedOps = [];
+
+function initMigrateTab() {
+  loadProfileSelects();
+  goToStep(migrateState.step);
+}
+
+function goToStep(n) {
+  migrateState.step = n;
+  document.querySelectorAll('.migrate-step').forEach(el => el.classList.add('hidden'));
+  document.getElementById('mstep-' + n).classList.remove('hidden');
+  // Update stepper
+  document.querySelectorAll('#migrate-stepper .step').forEach(step => {
+    const sn = parseInt(step.dataset.step);
+    step.classList.toggle('active', sn === n);
+    step.classList.toggle('done', sn < n);
+  });
+  document.querySelectorAll('#migrate-stepper .step-connector').forEach((conn, i) => {
+    conn.classList.toggle('done', i + 1 < n);
+  });
+}
+
+// Step 1: Source
+document.getElementById('btn-m-load-source-sites').addEventListener('click', async () => {
+  const profile = document.getElementById('m-source-profile').value;
+  try {
+    const resp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/sites');
+    const sites = await resp.json();
+    document.getElementById('m-source-site').innerHTML = sites.map(s => `<option value="${s.siteId}">${s.name}</option>`).join('');
+  } catch (e) { alert('Failed: ' + e.message); }
+});
+
+document.getElementById('btn-m-use-snapshot').addEventListener('click', () => {
+  const path = document.getElementById('m-source-snapshot').value;
+  if (!path) { alert('Select a snapshot'); return; }
+  migrateState.sourceSnapshot = path;
+  // Fetch controller info from snapshot metadata
+  fetch(API + '/api/snapshots/' + encodeURIComponent(path.split('/').pop())).then(r => r.json()).then(snap => {
+    migrateState.sourceInfo = { name: snap.controller.name, type: snap.controller.type, url: snap.controller.url };
+    document.getElementById('m-source-status').innerHTML = '<div class="status-bar success">Source snapshot loaded.</div>';
+    goToStep(2);
+  });
+});
+
+document.getElementById('btn-m-read-source').addEventListener('click', () => {
+  const profile = document.getElementById('m-source-profile').value;
+  const site = document.getElementById('m-source-site').value;
+  if (!profile || !site) { alert('Select profile and site'); return; }
+
+  const statusEl = document.getElementById('m-source-status');
+  statusEl.innerHTML = `<div class="progress-bar"><div class="progress-fill" id="m-read-progress" style="width:0%">0%</div></div><div class="progress-label" id="m-read-label">Reading...</div>`;
+
+  const siteName = document.getElementById('m-source-site').selectedOptions[0]?.text || site;
+  const es = new EventSource(API + '/api/read?profile_name=' + encodeURIComponent(profile) + '&site_id=' + encodeURIComponent(site) + '&site_name=' + encodeURIComponent(siteName));
+  es.addEventListener('progress', (e) => {
+    const d = JSON.parse(e.data);
+    const pct = Math.round((d.current / d.total) * 100);
+    document.getElementById('m-read-progress').style.width = pct + '%';
+    document.getElementById('m-read-progress').textContent = pct + '%';
+    document.getElementById('m-read-label').textContent = `${d.status === 'ok' ? '✓' : '○'} ${d.key} (${d.current}/${d.total})`;
+  });
+  es.addEventListener('done', (e) => {
+    es.close();
+    const d = JSON.parse(e.data);
+    migrateState.sourceSnapshot = d.snapshot_path;
+    statusEl.innerHTML = `<div class="status-bar success">Read complete. ${d.resource_count} resources. Snapshot saved.</div>`;
+    // Fetch controller info
+    fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/controller-info').then(r => r.json()).then(info => {
+      migrateState.sourceInfo = info;
+      goToStep(2);
+    }).catch(() => goToStep(2));
+  });
+  es.onerror = () => { es.close(); statusEl.innerHTML = '<div class="status-bar error">Connection lost.</div>'; };
+});
+
+// Step 2: Target
+document.getElementById('btn-m-load-target-sites').addEventListener('click', async () => {
+  const profile = document.getElementById('m-target-profile').value;
+  try {
+    const resp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/sites');
+    const sites = await resp.json();
+    document.getElementById('m-target-site').innerHTML = sites.map(s => `<option value="${s.siteId}">${s.name}</option>`).join('');
+    // Fetch and show controller info
+    const infoResp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/controller-info');
+    migrateState.targetInfo = await infoResp.json();
+    renderVersionDisplay();
+  } catch (e) { alert('Failed: ' + e.message); }
+});
+
+function renderVersionDisplay() {
+  const src = migrateState.sourceInfo || {};
+  const tgt = migrateState.targetInfo || {};
+  const srcVer = src.controllerVersion || src.type || '?';
+  const tgtVer = tgt.controllerVersion || '?';
+  const srcApi = (src.apiVersions || ['v1']).join(', ');
+  const tgtApi = (tgt.apiVersions || ['v1']).join(', ');
+
+  const versionMismatch = srcVer !== '?' && tgtVer !== '?' && srcVer !== tgtVer;
+  const apiMismatch = srcApi !== tgtApi;
+
+  let html = `<div class="version-info${versionMismatch ? ' version-mismatch' : ''}">
+    <div><span class="label">Source:</span> <span class="value">${src.model || src.name || 'Snapshot'} ${srcVer}</span> <span class="label">(API: ${srcApi})</span></div>
+    <div><span class="label">Target:</span> <span class="value">${tgt.model || tgt.name || '?'} ${tgtVer}</span> <span class="label">(API: ${tgtApi})</span></div>
+  </div>`;
+
+  if (versionMismatch) {
+    html += `<div class="status-bar warning">Controller version mismatch. Some settings may not transfer cleanly between different versions.</div>`;
+  }
+  if (apiMismatch) {
+    const srcHasV2 = (src.apiVersions || []).includes('v2');
+    const tgtHasV2 = (tgt.apiVersions || []).includes('v2');
+    if (srcHasV2 && !tgtHasV2) {
+      html += `<div class="status-bar warning">Source supports API v2 but target only supports v1. v2-only features won't migrate.</div>`;
+    } else if (!srcHasV2 && tgtHasV2) {
+      html += `<div class="status-bar info">Target supports newer API v2. Migration will use v1 for compatibility.</div>`;
+    }
+  }
+
+  document.getElementById('m-version-display').innerHTML = html;
+  document.getElementById('m-version-compare').innerHTML = html;
+}
+
+// Step 3: Diff
+document.getElementById('btn-m-diff').addEventListener('click', async () => {
+  const targetProfile = document.getElementById('m-target-profile').value;
+  const targetSite = document.getElementById('m-target-site').value;
+  if (!targetProfile || !targetSite) { alert('Select target profile and site'); return; }
+  if (!migrateState.sourceSnapshot) { alert('No source selected'); return; }
+
+  goToStep(3);
+  const progressEl = document.getElementById('m-diff-progress');
+  progressEl.innerHTML = `<div class="progress-bar"><div class="progress-fill" id="m-diff-bar" style="width:0%">0%</div></div><div class="progress-label" id="m-diff-label">Comparing...</div>`;
+  document.getElementById('m-diff-results').classList.add('hidden');
+
+  // Use SSE-based diff
+  const resp = await fetch(API + '/api/diff', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({source_snapshot: migrateState.sourceSnapshot, target_profile: targetProfile, target_site_id: targetSite})
+  });
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let event = null;
+
+  function processChunk() {
+    return reader.read().then(({done, value}) => {
+      if (done) return;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (line.startsWith('event: ')) event = line.slice(7);
+        else if (line.startsWith('data: ') && event) {
+          const data = JSON.parse(line.slice(6));
+          if (event === 'diff_progress') {
+            const pct = Math.round((data.current / data.total) * 100);
+            document.getElementById('m-diff-bar').style.width = pct + '%';
+            document.getElementById('m-diff-bar').textContent = pct + '%';
+            const icon = data.status === 'ok' ? '✓' : data.status === 'unsupported' ? '○' : '✗';
+            document.getElementById('m-diff-label').textContent = `${icon} ${humanKey(data.key)} (${data.current}/${data.total})`;
+          } else if (event === 'diff_done') {
+            currentDiff = data;
+            selectedOps = [];
+            progressEl.innerHTML = '<div class="status-bar success">Comparison complete.</div>';
+            document.getElementById('m-diff-results').classList.remove('hidden');
+            renderMigrateDiff();
+          }
+          event = null;
+        }
+      }
+      return processChunk();
+    });
+  }
+  processChunk();
+});
+
+function humanKey(key) {
+  const meta = schemaMeta[key];
+  if (meta && meta.summary) return meta.summary;
+  // Fallback: convert path-style key to readable
+  return key.replace(/[{}\/_-]/g, m => m === '/' ? ' > ' : m === '_' || m === '-' ? ' ' : '').replace(/\s+/g, ' ').trim();
+}
+
+function renderMigrateDiff() {
+  const hideIdentical = document.getElementById('m-hide-identical').checked;
+  const showDetails = document.getElementById('m-show-details').checked;
+  const container = document.getElementById('m-diff-content');
+  let html = '';
+
+  const sortedKeys = Object.keys(currentDiff).sort((a, b) => {
+    const ad = currentDiff[a], bd = currentDiff[b];
+    // Sort: differs first, then source_only, then target_only, then identical
+    const score = d => (d.differs || 0) * 100 + (d.source_only || 0) * 10 + (d.target_only || 0);
+    return score(bd) - score(ad);
+  });
+
+  for (const key of sortedKeys) {
+    const data = currentDiff[key];
+    if (data.status !== 'ok') {
+      if (data.status === 'skipped') continue;
+      html += `<div class="resource-group"><div class="resource-header"><span>${humanKey(key)}</span><span class="badge badge-${data.status}">${data.status}</span></div></div>`;
+      continue;
+    }
+
+    const hasDiffs = (data.differs || 0) + (data.source_only || 0) + (data.target_only || 0) > 0;
+    if (!hasDiffs && hideIdentical) continue;
+
+    const meta = schemaMeta[key] || {};
+    const fieldDescs = meta.fields || {};
+    const items = [];
+
+    // Differs
+    if (data.diff_details) {
+      data.diff_details.forEach((d, i) => {
+        const name = d.source.name || d.source.ssid || d.source.profileName || d.source.ruleName || 'Object';
+        let detail = '';
+        if (showDetails && d.changed_fields) {
+          detail = '<table class="diff-field-table">' + d.changed_fields.map(f => {
+            const desc = fieldDescs[f] ? `<span class="field-desc">(${fieldDescs[f]})</span>` : '';
+            const sv = formatVal(d.source[f]);
+            const tv = formatVal(d.target[f]);
+            return `<tr><td class="field-name">${f}${desc}</td><td class="val-source">${sv}</td><td>→</td><td class="val-target">${tv}</td></tr>`;
+          }).join('') + '</table>';
+        }
+        items.push(`<div class="diff-item differs"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="update" data-idx="${i}"> <strong>${escHtml(name)}</strong> — ${d.changed_fields.length} field(s) differ</div>${detail}</div>`);
+      });
+    }
+    // Source-only
+    if (data.source_only_items) {
+      data.source_only_items.forEach((s, i) => {
+        const name = s.name || s.ssid || s.profileName || s.ruleName || 'Object';
+        items.push(`<div class="diff-item source-only"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="create" data-idx="${i}"> <strong>${escHtml(name)}</strong> — will be created on target</div></div>`);
+      });
+    }
+    // Target-only
+    if (data.target_only_items) {
+      data.target_only_items.forEach((t, i) => {
+        const name = t.name || t.ssid || t.profileName || t.ruleName || 'Object';
+        items.push(`<div class="diff-item target-only"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="delete" data-idx="${i}"> <strong>${escHtml(name)}</strong> — exists only on target (delete?)</div></div>`);
+      });
+    }
+
+    const identicalCount = data.identical || 0;
+    const displayName = humanKey(key);
+    const counts = `${data.differs || 0} changed, ${data.source_only || 0} new, ${data.target_only || 0} target-only, ${identicalCount} identical`;
+
+    html += `<div class="resource-group">
+      <div class="resource-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+        <span>${displayName}</span><span style="font-size:12px;color:#666">${counts}</span>
+      </div>
+      <div${hasDiffs ? '' : ' class="hidden"'}>${items.join('')}</div>
+    </div>`;
+  }
+
+  container.innerHTML = html || '<p style="color:#999">No differences found. Source and target are identical.</p>';
+
+  // Wire checkboxes
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', updateMigratePlan);
+  });
+}
+
+document.getElementById('m-hide-identical').addEventListener('change', renderMigrateDiff);
+document.getElementById('m-show-details').addEventListener('change', renderMigrateDiff);
+
+function updateMigratePlan() {
+  selectedOps = [];
+  document.querySelectorAll('#m-diff-content input[type=checkbox]:checked').forEach(cb => {
+    const key = cb.dataset.key;
+    const op = cb.dataset.op;
+    const idx = parseInt(cb.dataset.idx);
+    const data = currentDiff[key];
+
+    if (op === 'create') {
+      const obj = data.source_only_items[idx];
+      selectedOps.push({resource_key: key, op_type: 'create', object_name: obj.name || obj.ssid || 'unnamed', payload: obj, source_id: objId(obj)});
+    } else if (op === 'update') {
+      const d = data.diff_details[idx];
+      selectedOps.push({resource_key: key, op_type: 'update', object_name: d.source.name || d.source.ssid || 'unnamed', payload: d.source, source_id: objId(d.source), target_id: objId(d.target)});
+    } else if (op === 'delete') {
+      const obj = data.target_only_items[idx];
+      selectedOps.push({resource_key: key, op_type: 'delete', object_name: obj.name || obj.ssid || 'unnamed', payload: {}, target_id: objId(obj)});
+    }
+  });
+
+  const section = document.getElementById('m-plan-section');
+  const preview = document.getElementById('m-plan-preview');
+  if (selectedOps.length === 0) {
+    section.classList.add('hidden');
+  } else {
+    section.classList.remove('hidden');
+    preview.innerHTML = selectedOps.map(op => `<div class="plan-item"><span class="op ${op.op_type}">${op.op_type}</span><span>${humanKey(op.resource_key)}</span><span>${escHtml(op.object_name)}</span></div>`).join('');
+  }
+}
+
+// Step 4: Execute
+document.getElementById('btn-m-execute').addEventListener('click', () => {
+  if (!selectedOps.length) return;
+  if (!confirm(`Execute ${selectedOps.length} operation(s)? This will write to the target controller.`)) return;
+
+  goToStep(4);
+  const targetProfile = document.getElementById('m-target-profile').value;
+  const targetSite = document.getElementById('m-target-site').value;
+
+  fetch(API + '/api/execute', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({target_profile: targetProfile, target_site_id: targetSite, operations: selectedOps})
+  }).then(resp => {
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    function read() {
+      reader.read().then(({done, value}) => {
+        if (done) return;
+        buffer += decoder.decode(value, {stream: true});
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        let event = null;
+        for (const line of lines) {
+          if (line.startsWith('event: ')) event = line.slice(7);
+          else if (line.startsWith('data: ') && event) {
+            handleExecEvent(event, JSON.parse(line.slice(6)));
+            event = null;
+          }
+        }
+        read();
+      });
+    }
+    read();
+  });
+});
+
+function handleExecEvent(event, d) {
+  if (event === 'progress') {
+    const pct = d.total > 0 ? Math.round((d.current / d.total) * 100) : 0;
+    document.getElementById('m-exec-progress').style.width = pct + '%';
+    document.getElementById('m-exec-progress').textContent = pct + '%';
+    const icon = d.result === 'ok' ? '✓' : d.result === 'error' ? '✗' : '⌛';
+    document.getElementById('m-exec-label').textContent = `${icon} ${d.op} ${d.name} (pass ${d.pass || 1})`;
+    if (d.result) {
+      const color = d.result === 'ok' ? '#2e7d32' : '#c62828';
+      document.getElementById('m-exec-log').innerHTML += `<div style="color:${color}">${d.op} ${escHtml(d.name)}: ${d.result}${d.error ? ' — ' + escHtml(d.error) : ''}</div>`;
+    }
+  } else if (event === 'done') {
+    document.getElementById('m-exec-progress').style.width = '100%';
+    document.getElementById('m-exec-progress').textContent = '100%';
+    document.getElementById('m-exec-label').textContent = `Done: ${d.succeeded} succeeded, ${d.failed} failed`;
+    if (d.failures && d.failures.length) {
+      document.getElementById('m-exec-log').innerHTML += '<hr>' + d.failures.map(f => `<div style="color:#c62828">✗ ${escHtml(f.name)}: ${escHtml(f.reason)}</div>`).join('');
+    }
+  }
+}
+
+// Devices tab (unchanged logic, just using loadProfileSelects)
+document.getElementById('btn-dev-load-source-sites').addEventListener('click', async () => {
+  const profile = document.getElementById('dev-source-profile').value;
+  const resp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/sites');
+  const sites = await resp.json();
+  document.getElementById('dev-source-site').innerHTML = sites.map(s => `<option value="${s.siteId}">${s.name}</option>`).join('');
+});
+
+document.getElementById('btn-dev-load-target-sites').addEventListener('click', async () => {
+  const profile = document.getElementById('dev-target-profile').value;
+  const resp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/sites');
+  const sites = await resp.json();
+  document.getElementById('dev-target-site').innerHTML = sites.map(s => `<option value="${s.siteId}">${s.name}</option>`).join('');
+});
+
+document.getElementById('btn-dev-list-source').addEventListener('click', async () => {
+  const profile = document.getElementById('dev-source-profile').value;
+  const site = document.getElementById('dev-source-site').value;
+  if (!profile || !site) { alert('Select profile and site'); return; }
+  const resp = await fetch(API + `/api/devices/${encodeURIComponent(profile)}/${encodeURIComponent(site)}`);
+  const data = await resp.json();
+  const el = document.getElementById('dev-source-devices');
+  el.classList.remove('hidden');
+  const devices = data.devices || [];
+  if (!devices.length) {
+    document.getElementById('dev-source-table').innerHTML = '<p style="color:#999">No adopted devices.</p>';
+    return;
+  }
+  const statusMap = {0:'⌛ Disconnected', 1:'✓ Connected', 2:'⌛ Pending', 3:'⚠ Heartbeat lost', 4:'⌛ Adopting'};
+  document.getElementById('dev-source-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-src-all"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th><th>Status</th></tr>' +
+    devices.map(d => `<tr><td><input type="checkbox" class="dev-src-check" value="${d.mac}"></td><td>${d.name||'—'}</td><td>${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td><td>${statusMap[d.status]||'? ('+d.status+')'}</td></tr>`).join('') +
+    '</table>';
+  document.getElementById('dev-src-all').addEventListener('change', (e) => {
+    document.querySelectorAll('.dev-src-check').forEach(cb => cb.checked = e.target.checked);
+  });
+});
+
+document.getElementById('btn-dev-list-pending').addEventListener('click', async () => {
+  const profile = document.getElementById('dev-target-profile').value;
+  const site = document.getElementById('dev-target-site').value;
+  if (!profile || !site) { alert('Select profile and site'); return; }
+  const resp = await fetch(API + `/api/devices/${encodeURIComponent(profile)}/${encodeURIComponent(site)}/pending`);
+  const data = await resp.json();
+  const el = document.getElementById('dev-target-devices');
+  el.classList.remove('hidden');
+  const devices = data.devices || [];
+  if (!devices.length) {
+    document.getElementById('dev-target-table').innerHTML = '<p style="color:#999">No pending devices.</p>';
+    return;
+  }
+  document.getElementById('dev-target-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-tgt-all"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th></tr>' +
+    devices.map(d => `<tr><td><input type="checkbox" class="dev-tgt-check" value="${d.mac}"></td><td>${d.name||'—'}</td><td>${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td></tr>`).join('') +
+    '</table>';
+  document.getElementById('dev-tgt-all').addEventListener('change', (e) => {
+    document.querySelectorAll('.dev-tgt-check').forEach(cb => cb.checked = e.target.checked);
+  });
+});
+
+// Forget + Adopt flow
+document.getElementById('btn-dev-forget').addEventListener('click', async () => {
+  const selected = [...document.querySelectorAll('.dev-src-check:checked')].map(cb => cb.value);
+  if (!selected.length) { alert('Select devices to migrate'); return; }
+
+  const sourceProfile = document.getElementById('dev-source-profile').value;
+  const sourceSite = document.getElementById('dev-source-site').value;
+  const targetProfile = document.getElementById('dev-target-profile').value;
+  const targetSite = document.getElementById('dev-target-site').value;
+
+  if (!targetSite) { alert('Load target sites first'); return; }
+  if (!confirm(`This will FORGET ${selected.length} device(s) from ${sourceProfile} and adopt on ${targetProfile}.\n\n⚠ IMPORTANT: Devices must be able to reach the target controller over the network (same subnet or routed path). If they cannot, they will be orphaned and require manual recovery.\n\nContinue?`)) return;
+
+  const statusEl = document.getElementById('dev-status');
+  const logEl = document.getElementById('dev-status-log');
+  statusEl.classList.remove('hidden');
+  logEl.innerHTML = '';
+
+  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#333'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+
+  log(`⌛ Fetching device credentials from ${sourceProfile}...`, '#555');
+  let srcUser = document.getElementById('dev-credentials-user').value;
+  let srcPass = document.getElementById('dev-credentials-pass').value;
+  if (!srcUser) {
+    try {
+      const acctResp = await fetch(API + `/api/devices/${encodeURIComponent(sourceProfile)}/${encodeURIComponent(sourceSite)}/device-account`);
+      const acctData = await acctResp.json();
+      if (acctData.account) {
+        srcUser = acctData.account.username || '';
+        srcPass = acctData.account.password || '';
+        log(`✓ Got source credentials: user="${srcUser}"`, '#2e7d32');
+      } else {
+        log(`⚠ No device account on source`, '#e65100');
+      }
+    } catch (e) { log(`⚠ Could not fetch device account: ${e.message}`, '#e65100'); }
+  }
+
+  const newUser = document.getElementById('dev-target-creds-user').value;
+  const newPass = document.getElementById('dev-target-creds-pass').value;
+  const adoptUser = newUser || srcUser;
+  const adoptPass = newPass || srcPass;
+  if (adoptUser && adoptPass) {
+    log(`⌛ Setting target device-account...`, '#555');
+    try {
+      await fetch(API + '/api/devices/device-account', {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, username: adoptUser, password: adoptPass})
+      });
+      log(`✓ Target device-account set`, '#2e7d32');
+    } catch (e) { log(`⚠ Could not set target device-account: ${e.message}`, '#e65100'); }
+  }
+
+  log(`⌛ Forgetting ${selected.length} device(s)...`, '#555');
+  const forgotten = [];
+  for (const mac of selected) {
+    try {
+      const resp = await fetch(API + '/api/devices/forget', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({profile_name: sourceProfile, site_id: sourceSite, device_mac: mac})
+      });
+      if (resp.ok) { forgotten.push(mac); log(`✓ Forgot ${mac}`, '#2e7d32'); }
+      else { const err = await resp.json(); log(`✗ Failed ${mac}: ${err.detail}`, '#c62828'); }
+    } catch (e) { log(`✗ Error ${mac}: ${e.message}`, '#c62828'); }
+  }
+
+  if (!forgotten.length) { log('No devices forgotten. Aborting.', '#c62828'); return; }
+
+  log(`⌛ Waiting for devices to appear pending on target...`, '#555');
+  const remaining = new Set(forgotten);
+  const deadline = Date.now() + 300000;
+  let waitEl = null;
+  while (remaining.size > 0 && Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 10000));
+    try {
+      const resp = await fetch(API + `/api/devices/${encodeURIComponent(targetProfile)}/${encodeURIComponent(targetSite)}/pending`);
+      const data = await resp.json();
+      const pendingMacs = new Set((data.devices || []).map(d => d.mac));
+      for (const mac of [...remaining]) {
+        if (pendingMacs.has(mac)) { remaining.delete(mac); log(`✓ ${mac} pending`, '#2e7d32'); waitEl = null; }
+      }
+      if (remaining.size > 0) {
+        const secs = Math.round((deadline - Date.now()) / 1000);
+        if (!waitEl) { log(`… waiting for ${remaining.size} device(s) (${secs}s remaining)`, '#555'); waitEl = logEl.lastChild; }
+        else { waitEl.textContent = `… waiting for ${remaining.size} device(s) (${secs}s remaining)`; }
+      }
+    } catch (e) { /* retry */ }
+  }
+
+  log(`⌛ Adopting ${forgotten.length} device(s)...`, '#555');
+  try {
+    await fetch(API + '/api/devices/adopt', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, device_macs: forgotten})
+    });
+    log(`✓ Batch adopt sent`, '#2e7d32');
+  } catch (e) { log(`✗ Adopt error: ${e.message}`, '#c62828'); return; }
+
+  log(`⌛ Waiting for adoption...`, '#555');
+  const adoptDeadline = Date.now() + 300000;
+  const adoptPending = new Set(forgotten);
+  let lastAdoptSend = Date.now();
+  let adoptWaitEl = null;
+  while (adoptPending.size > 0 && Date.now() < adoptDeadline) {
+    await new Promise(r => setTimeout(r, 15000));
+    try {
+      const resp = await fetch(API + `/api/devices/${encodeURIComponent(targetProfile)}/${encodeURIComponent(targetSite)}`);
+      const data = await resp.json();
+      for (const mac of [...adoptPending]) {
+        const dev = (data.devices || []).find(d => d.mac === mac);
+        if (dev && dev.status === 1) { adoptPending.delete(mac); log(`✓ ${mac} connected!`, '#2e7d32'); adoptWaitEl = null; }
+      }
+    } catch (e) { /* retry */ }
+    if (adoptPending.size > 0) {
+      const secs = Math.round((adoptDeadline - Date.now()) / 1000);
+      if (!adoptWaitEl) { log(`… provisioning ${adoptPending.size} device(s) (${secs}s remaining)`, '#555'); adoptWaitEl = logEl.lastChild; }
+      else { adoptWaitEl.textContent = `… provisioning ${adoptPending.size} device(s) (${secs}s remaining)`; }
+    }
+    if (adoptPending.size > 0 && Date.now() - lastAdoptSend > 60000) {
+      try { await fetch(API + '/api/devices/adopt', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, device_macs: [...adoptPending]}) }); } catch (e) {}
+      lastAdoptSend = Date.now();
+    }
+  }
+  if (adoptPending.size === 0) log(`✓ All devices migrated!`, '#2e7d32');
+  else log(`⚠ ${adoptPending.size} device(s) not fully connected yet.`, '#e65100');
+  log(`Next: use the Migrate tab to apply per-device config.`, '#555');
+});
+
+document.getElementById('btn-dev-adopt').addEventListener('click', async () => {
+  const selected = [...document.querySelectorAll('.dev-tgt-check:checked')].map(cb => cb.value);
+  if (!selected.length) { alert('Select devices'); return; }
+  if (!confirm(`Adopt ${selected.length} device(s)?`)) return;
+
+  const targetProfile = document.getElementById('dev-target-profile').value;
+  const targetSite = document.getElementById('dev-target-site').value;
+  const username = document.getElementById('dev-adopt-user').value;
+  const password = document.getElementById('dev-adopt-pass').value;
+
+  const statusEl = document.getElementById('dev-status');
+  const logEl = document.getElementById('dev-status-log');
+  statusEl.classList.remove('hidden');
+  logEl.innerHTML = '';
+  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#333'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+
+  try {
+    await fetch(API + '/api/devices/adopt', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, device_macs: selected, username, password})
+    });
+    log(`✓ Adopt request sent`, '#2e7d32');
+  } catch (e) { log(`✗ Error: ${e.message}`, '#c62828'); return; }
+
+  log(`⌛ Waiting for adoption...`, '#555');
+  const pending = new Set(selected);
+  const deadline = Date.now() + 300000;
+  while (pending.size > 0 && Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 15000));
+    try {
+      const resp = await fetch(API + `/api/devices/${encodeURIComponent(targetProfile)}/${encodeURIComponent(targetSite)}`);
+      const data = await resp.json();
+      for (const mac of [...pending]) {
+        const dev = (data.devices || []).find(d => d.mac === mac);
+        if (dev && dev.status === 1) { pending.delete(mac); log(`✓ ${mac} connected!`, '#2e7d32'); }
+      }
+    } catch (e) {}
+  }
+  if (pending.size === 0) log(`✓ All adopted!`, '#2e7d32');
+  else log(`⚠ ${pending.size} still provisioning.`, '#e65100');
+});
+
+// Snapshots
+async function loadSnapshots() {
+  const resp = await fetch(API + '/api/snapshots');
+  const snaps = await resp.json();
+  const el = document.getElementById('snapshot-list');
+  if (!snaps.length) { el.innerHTML = '<p style="color:#999">No snapshots yet.</p>'; return; }
+  el.innerHTML = '<table><tr><th>Filename</th><th></th></tr>' +
+    snaps.map(s => `<tr><td>${s.name}</td><td><button onclick="viewSnapshot('${s.name}')">View</button> <button class="danger" onclick="deleteSnapshot('${s.name}')">Delete</button></td></tr>`).join('') +
+    '</table>';
+}
+
+async function deleteSnapshot(filename) {
+  if (!confirm('Delete "' + filename + '"?')) return;
+  await fetch(API + '/api/snapshots/' + encodeURIComponent(filename), {method: 'DELETE'});
+  loadSnapshots();
+  closeSnapshotDetail();
+}
+
+async function viewSnapshot(filename) {
+  const resp = await fetch(API + '/api/snapshots/' + encodeURIComponent(filename));
+  const snap = await resp.json();
+  document.getElementById('snapshot-detail').classList.remove('hidden');
+  document.getElementById('snapshot-detail-title').textContent = `${snap.site.name} — ${snap.controller.name}`;
+  document.getElementById('snapshot-meta').innerHTML =
+    `<strong>Controller:</strong> ${snap.controller.url} (${snap.controller.type}) &nbsp; <strong>Captured:</strong> ${snap.captured_at}`;
+  renderSnapshotResources(snap.resources);
+  document.getElementById('snap-hide-empty').addEventListener('change', () => renderSnapshotResources(snap.resources));
+}
+
+function renderSnapshotResources(resources) {
+  const hideEmpty = document.getElementById('snap-hide-empty').checked;
+  const container = document.getElementById('snapshot-resources');
+  let html = '';
+  const sorted = Object.entries(resources).sort((a, b) => {
+    const order = {ok: 0, error: 1, unsupported: 2};
+    return (order[a[1].status] || 3) - (order[b[1].status] || 3) || a[0].localeCompare(b[0]);
+  });
+  for (const [key, data] of sorted) {
+    const count = (data.objects || []).length;
+    if (hideEmpty && count === 0 && data.status === 'ok') continue;
+    const badge = `<span class="badge badge-${data.status}">${data.status}</span>`;
+    let body = '';
+    if (data.status !== 'ok' && data.error) {
+      body = `<div style="padding:8px;font-size:12px;color:#c62828">${escHtml(data.error)}</div>`;
+    } else if (count > 0) {
+      const keys = Object.keys(data.objects[0]).slice(0, 10);
+      body = '<div style="max-height:300px;overflow:auto;font-size:12px;"><table>' +
+        '<tr>' + keys.map(k => `<th style="position:sticky;top:0;background:#fff">${k}</th>`).join('') + '</tr>' +
+        data.objects.map(obj => '<tr>' + keys.map(k => `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${formatVal(obj[k])}</td>`).join('') + '</tr>').join('') +
+        '</table></div>';
+    }
+    html += `<div class="resource-group"><div class="resource-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${humanKey(key)} (${count})</span>${badge}</div><div class="hidden">${body}</div></div>`;
+  }
+  container.innerHTML = html || '<p style="color:#999">No resources.</p>';
+}
+
+function objId(obj) {
+  return obj.id || obj.ssidId || obj.networkId || obj.ruleId || obj.profileId || obj.filterId || '';
+}
+
+function formatVal(v) {
+  if (v === null || v === undefined) return '<span style="color:#999">—</span>';
+  if (typeof v === 'object') return '<span style="color:#888">{...}</span>';
+  return escHtml(String(v));
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function closeSnapshotDetail() {
+  document.getElementById('snapshot-detail').classList.add('hidden');
+}
+
+// --- Spec management ---
+async function loadSpecs() {
+  const resp = await fetch(API + '/api/specs');
+  const specs = await resp.json();
+  const el = document.getElementById('spec-list');
+  el.innerHTML = '<table><tr><th>Name</th><th>Status</th><th></th></tr>' +
+    specs.map(s => `<tr>
+      <td>${escHtml(s.label)}</td>
+      <td>${s.active ? '<span class="badge badge-ok">Active</span>' : ''}</td>
+      <td>${s.is_bundled ? '' : `<button class="danger" onclick="deleteSpec('${escHtml(s.name)}')">Delete</button>`}</td>
+    </tr>`).join('') + '</table>';
+}
+
+document.getElementById('btn-import-spec').addEventListener('click', async () => {
+  const path = document.getElementById('spec-import-path').value.trim();
+  const label = document.getElementById('spec-import-label').value.trim();
+  if (!path) { alert('Enter a file path'); return; }
+  try {
+    const resp = await fetch(API + '/api/specs/import', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({source_path: path, label: label || null})
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      alert(`Imported: ${data.label} (${data.paths} paths). Now active.`);
+      document.getElementById('spec-import-path').value = '';
+      document.getElementById('spec-import-label').value = '';
+      loadSpecs();
+      // Reload schema meta since spec changed
+      fetch(API + '/api/schema-meta').then(r => r.json()).then(d => { schemaMeta = d; });
+    } else {
+      const err = await resp.json();
+      alert('Import failed: ' + (err.detail || err.message || JSON.stringify(err)));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+});
+
+async function deleteSpec(name) {
+  if (!confirm('Delete this spec?')) return;
+  await fetch(API + '/api/specs/' + encodeURIComponent(name), {method: 'DELETE'});
+  loadSpecs();
+  fetch(API + '/api/schema-meta').then(r => r.json()).then(d => { schemaMeta = d; });
+}
+
+// Init
+loadProfiles();
+loadSpecs();
+</script>
+</body>
+</html>
