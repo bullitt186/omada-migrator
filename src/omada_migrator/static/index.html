@@ -6,85 +6,171 @@
 <title>Omada Migrator</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-h1 { margin-bottom: 20px; color: #1a1a1a; }
-h2 { margin: 20px 0 10px; color: #333; font-size: 1.2em; }
-.card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
-.tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-.tab.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
+body { font-family: Manrope, Arial, Geneva, Verdana, sans-serif; background: #F8F9FB; color: #2B2B2B; font-size: 14px; line-height: 1.5; }
+
+/* Top bar */
+.topbar { background: rgba(54,62,77,1); color: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.topbar h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.topbar .subtitle { font-size: 12px; color: rgba(255,255,255,0.6); margin-left: 12px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+h2 { margin: 0 0 16px; color: #2B2B2B; font-size: 16px; font-weight: 700; }
+h3 { font-size: 14px; font-weight: 600; color: #2B2B2B; margin: 0 0 8px; }
+
+.card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 16px; border: 1px solid #EBECED; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #EBECED; background: #fff; border-radius: 10px 10px 0 0; padding: 0 8px; }
+.tab { padding: 14px 24px; cursor: pointer; border: none; background: none; font-size: 14px; font-weight: 500; color: #5E696F; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: inherit; }
+.tab:hover { color: #0492eb; }
+.tab.active { color: #0492eb; border-bottom-color: #0492eb; font-weight: 600; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
-button { background: #1976d2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
-button:hover { background: #1565c0; }
-button.danger { background: #d32f2f; }
-button.danger:hover { background: #b71c1c; }
-button.secondary { background: #757575; }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-input, select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; margin-bottom: 8px; }
-label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 500; }
+
+/* Buttons */
+button { font-family: inherit; background: #0492eb; color: #fff; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.15s, box-shadow 0.15s; }
+button:hover { background: #0380d1; box-shadow: 0 2px 8px rgba(4,146,235,0.25); }
+button.danger { background: #ff2954; }
+button.danger:hover { background: #e0203f; box-shadow: 0 2px 8px rgba(255,41,84,0.25); }
+button.secondary { background: transparent; color: #5E696F; border: 1px solid #EBECED; }
+button.secondary:hover { background: #F8F9FB; border-color: #ccc; box-shadow: none; }
+button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+/* Inputs */
+input, select { font-family: inherit; padding: 9px 14px; border: 1px solid #EBECED; border-radius: 8px; font-size: 14px; width: 100%; margin-bottom: 8px; color: #2B2B2B; background: #fff; transition: border-color 0.15s; }
+input:focus, select:focus { outline: none; border-color: #0492eb; box-shadow: 0 0 0 3px rgba(4,146,235,0.1); }
+label { display: block; font-size: 13px; color: #5E696F; margin-bottom: 4px; font-weight: 500; }
 .form-row { margin-bottom: 12px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.badge-ok { background: #e8f5e9; color: #2e7d32; }
-.badge-error { background: #ffebee; color: #c62828; }
-.badge-unsupported { background: #fff3e0; color: #e65100; }
-.badge-mismatch { background: #fff3e0; color: #e65100; }
-.diff-item { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; margin-bottom: 8px; }
-.diff-item.identical { opacity: 0.6; }
-.diff-item.differs { border-left: 3px solid #ff9800; }
-.diff-item.source-only { border-left: 3px solid #4caf50; }
-.diff-item.target-only { border-left: 3px solid #f44336; }
-.checkbox-row { display: flex; align-items: center; gap: 8px; }
-.checkbox-row input[type=checkbox] { width: auto; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: #E6F7F0; color: #00A870; }
+.badge-error { background: #FFE8EC; color: #ff2954; }
+.badge-unsupported { background: #FFF3E0; color: #ff9500; }
+.badge-mismatch { background: #FFF3E0; color: #ff9500; }
+
+/* Mini count badges for diff sections */
+.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 9px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+.count-badge.changed { background: #FFF3E0; color: #ff9500; }
+.count-badge.new { background: #E6F7F0; color: #00A870; }
+.count-badge.target-only { background: #FFE8EC; color: #ff2954; }
+
+/* Tables */
 table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; }
-th { background: #fafafa; font-weight: 600; font-size: 13px; }
-.resource-group { margin-bottom: 16px; }
-.resource-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px; background: #fafafa; border-radius: 4px; }
-.resource-header:hover { background: #f0f0f0; }
-.resource-summary { font-size: 12px; color: #666; font-style: italic; margin-left: 8px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #EBECED; font-size: 13px; }
+th:first-child, td:first-child { padding-left: 24px; }
+th:last-child, td:last-child { padding-right: 24px; }
+th { background: #F8F9FB; font-weight: 600; font-size: 12px; color: #5E696F; text-transform: uppercase; letter-spacing: 0.3px; }
+tr { height: 40px; }
+tr:last-child td { border-bottom: none; }
+
+/* Resource groups (diff sections) */
+.resource-group { margin-bottom: 12px; border: 1px solid #EBECED; border-radius: 10px; overflow: hidden; }
+.resource-header { display: flex; align-items: center; cursor: pointer; padding: 12px 20px; background: #F8F9FB; user-select: none; transition: background 0.15s; }
+.resource-header:hover { background: #f0f2f5; }
+.resource-header .chevron { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-right: 10px; transition: transform 0.2s ease; color: #868E93; font-size: 12px; }
+.resource-header .chevron.expanded { transform: rotate(90deg); }
+.resource-header .group-name { font-weight: 600; font-size: 14px; color: #2B2B2B; }
+.resource-header .group-counts { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.resource-body { display: none; padding: 0; }
+.resource-body.expanded { display: block; }
+
+/* Diff items */
+.diff-item { border-bottom: 1px solid #EBECED; padding: 10px 20px 10px 44px; }
+.diff-item:last-child { border-bottom: none; }
+.diff-item-header { display: flex; align-items: center; cursor: pointer; user-select: none; min-height: 32px; }
+.diff-item-header .item-chevron { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 8px; transition: transform 0.2s ease; color: #868E93; font-size: 10px; }
+.diff-item-header .item-chevron.expanded { transform: rotate(90deg); }
+.diff-item-header .item-checkbox { margin-right: 10px; }
+.diff-item-header .item-checkbox input[type=checkbox] { width: 16px; height: 16px; accent-color: #0492eb; cursor: pointer; }
+.diff-item-header .item-name { font-weight: 500; color: #2B2B2B; }
+.diff-item-header .item-meta { margin-left: auto; font-size: 12px; color: #868E93; }
+.diff-item-detail { display: none; padding: 12px 0 8px 26px; }
+.diff-item-detail.expanded { display: block; }
+
+/* Status indicators on diff items */
+.diff-item.differs { border-left: 3px solid #ff9500; }
+.diff-item.source-only { border-left: 3px solid #00A870; }
+.diff-item.target-only { border-left: 3px solid #ff2954; }
+
+/* Field detail table */
+.diff-field-table { width: 100%; font-size: 12px; border: 1px solid #EBECED; border-radius: 8px; overflow: hidden; }
+.diff-field-table th { background: #F8F9FB; padding: 6px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+.diff-field-table td { padding: 6px 12px; vertical-align: top; border-bottom: 1px solid #EBECED; }
+.diff-field-table tr:last-child td { border-bottom: none; }
+.diff-field-table .field-name { font-weight: 600; color: #5E696F; white-space: nowrap; }
+.diff-field-table .field-desc { font-size: 11px; color: #868E93; font-style: italic; font-weight: 400; margin-left: 4px; }
+.diff-field-table .val-source { background: #E6F7F0; border-radius: 4px; padding: 2px 8px; word-break: break-all; color: #00A870; }
+.diff-field-table .val-target { background: #FFE8EC; border-radius: 4px; padding: 2px 8px; word-break: break-all; color: #ff2954; }
+.diff-field-table .val-neutral { color: #2B2B2B; word-break: break-all; }
+.diff-field-table .val-null { color: #868E93; }
+
+/* Checkbox row */
+.checkbox-row { display: flex; align-items: center; gap: 8px; }
+.checkbox-row input[type=checkbox] { width: auto; margin: 0; }
+
+/* Hidden */
 .hidden { display: none; }
-.status-bar { padding: 10px 16px; border-radius: 4px; margin-bottom: 12px; }
-.status-bar.info { background: #e3f2fd; color: #1565c0; }
-.status-bar.success { background: #e8f5e9; color: #2e7d32; }
-.status-bar.error { background: #ffebee; color: #c62828; }
-.status-bar.warning { background: #fff3e0; color: #e65100; }
-.progress-bar { width: 100%; height: 24px; background: #e0e0e0; border-radius: 12px; overflow: hidden; margin: 8px 0; }
-.progress-fill { height: 100%; background: #1976d2; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; min-width: 30px; }
-.progress-label { font-size: 13px; color: #555; margin-top: 4px; }
-.plan-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f0f0f0; }
-.plan-item .op { font-weight: 600; font-size: 12px; text-transform: uppercase; }
-.plan-item .op.create { color: #2e7d32; }
-.plan-item .op.update { color: #f57c00; }
-.plan-item .op.delete { color: #c62828; }
+
+/* Status bars */
+.status-bar { padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+.status-bar.info { background: #E8F4FD; color: #0380d1; border: 1px solid #B8DFFA; }
+.status-bar.success { background: #E6F7F0; color: #008A5B; border: 1px solid #B3E8D4; }
+.status-bar.error { background: #FFE8EC; color: #d42048; border: 1px solid #FFB8C4; }
+.status-bar.warning { background: #FFF3E0; color: #cc7700; border: 1px solid #FFD699; }
+
+/* Progress bar */
+.progress-bar { width: 100%; height: 28px; background: #EBECED; border-radius: 14px; overflow: hidden; margin: 8px 0; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #0492eb, #06b6d4); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; min-width: 30px; border-radius: 14px; }
+.progress-label { font-size: 13px; color: #5E696F; margin-top: 4px; }
+
+/* Plan items */
+.plan-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #EBECED; }
+.plan-item:last-child { border-bottom: none; }
+.plan-item .op { font-weight: 700; font-size: 11px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+.plan-item .op.create { color: #00A870; background: #E6F7F0; }
+.plan-item .op.update { color: #ff9500; background: #FFF3E0; }
+.plan-item .op.delete { color: #ff2954; background: #FFE8EC; }
+
+/* Toggle */
 .toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.version-info { display: flex; gap: 24px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
-.version-info .label { color: #666; }
-.version-info .value { font-weight: 600; }
-.version-mismatch { border: 1px solid #ff9800; background: #fff8e1; }
-.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 24px; padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+/* Version info */
+.version-info { display: flex; gap: 24px; padding: 14px 20px; background: #F8F9FB; border-radius: 8px; margin-bottom: 16px; font-size: 13px; border: 1px solid #EBECED; }
+.version-info .label { color: #5E696F; }
+.version-info .value { font-weight: 600; color: #2B2B2B; }
+.version-mismatch { border-color: #ff9500; background: #FFFBF5; }
+
+/* Stepper */
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 24px; padding: 18px 24px; background: #fff; border-radius: 10px; border: 1px solid #EBECED; }
 .step { display: flex; align-items: center; gap: 8px; }
-.step-num { width: 28px; height: 28px; border-radius: 50%; background: #e0e0e0; color: #666; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
-.step.active .step-num { background: #1976d2; color: #fff; }
-.step.done .step-num { background: #4caf50; color: #fff; }
-.step-label { font-size: 13px; color: #666; }
-.step.active .step-label { color: #1976d2; font-weight: 600; }
-.step.done .step-label { color: #4caf50; }
-.step-connector { flex: 1; height: 2px; background: #e0e0e0; margin: 0 12px; }
-.step-connector.done { background: #4caf50; }
-.field-desc { font-size: 11px; color: #888; margin-left: 4px; }
-.diff-field-table { width: 100%; font-size: 12px; margin-top: 8px; }
-.diff-field-table td { padding: 4px 8px; vertical-align: top; }
-.diff-field-table .field-name { font-weight: 600; color: #555; white-space: nowrap; }
-.diff-field-table .val-source { background: #e8f5e9; border-radius: 3px; padding: 2px 6px; word-break: break-all; }
-.diff-field-table .val-target { background: #ffebee; border-radius: 3px; padding: 2px 6px; word-break: break-all; }
+.step-num { width: 30px; height: 30px; border-radius: 50%; background: #EBECED; color: #868E93; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; transition: all 0.2s; }
+.step.active .step-num { background: #0492eb; color: #fff; box-shadow: 0 2px 8px rgba(4,146,235,0.3); }
+.step.done .step-num { background: #00A870; color: #fff; }
+.step-label { font-size: 13px; color: #868E93; font-weight: 500; }
+.step.active .step-label { color: #0492eb; font-weight: 600; }
+.step.done .step-label { color: #00A870; }
+.step-connector { flex: 1; height: 2px; background: #EBECED; margin: 0 16px; }
+.step-connector.done { background: #00A870; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .container { padding: 16px; }
+  .tabs { overflow-x: auto; }
+  .tab { padding: 12px 16px; white-space: nowrap; }
+}
 </style>
 </head>
 <body>
+<div class="topbar">
+  <h1>Omada Migrator</h1>
+  <span class="subtitle">Controller Configuration Migration Tool</span>
+</div>
+
 <div class="container">
-<h1>Omada Migrator</h1>
 
 <div class="tabs">
   <button class="tab active" data-tab="profiles">Profiles</button>
@@ -98,11 +184,11 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
   <div class="card">
     <h2>Controller Profiles</h2>
     <div id="profile-list"></div>
-    <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+    <hr style="margin: 20px 0; border: none; border-top: 1px solid #EBECED;">
     <h2>Add Profile</h2>
     <form id="profile-form">
       <div class="form-grid">
-        <div class="form-row"><label>Name</label><input name="name" required></div>
+        <div class="form-row"><label>Name</label><input name="name" required placeholder="e.g. Home Controller"></div>
         <div class="form-row"><label>Type</label>
           <select name="type" id="profile-type">
             <option value="local">Local</option>
@@ -111,30 +197,30 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
           </select>
         </div>
         <div class="form-row"><label>URL</label><input name="url" placeholder="https://192.168.1.100:8043" required></div>
-        <div class="form-row"><label><input type="checkbox" name="insecure_tls" style="width:auto"> Allow self-signed TLS</label></div>
+        <div class="form-row" style="display:flex;align-items:center;padding-top:20px"><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" name="insecure_tls" style="width:16px;height:16px;accent-color:#0492eb"> Allow self-signed TLS</label></div>
       </div>
       <div id="classic-fields">
         <div class="form-grid">
-          <div class="form-row"><label>Omada Controller ID</label><input name="omadac_id"></div>
-          <div class="form-row"><label>Client ID</label><input name="client_id"></div>
-          <div class="form-row"><label>Client Secret</label><input name="client_secret" type="password"></div>
+          <div class="form-row"><label>Omada Controller ID</label><input name="omadac_id" placeholder="Controller ID"></div>
+          <div class="form-row"><label>Client ID</label><input name="client_id" placeholder="API client ID"></div>
+          <div class="form-row"><label>Client Secret</label><input name="client_secret" type="password" placeholder="API client secret"></div>
         </div>
       </div>
       <div id="fusion-fields" class="hidden">
         <div class="form-grid">
-          <div class="form-row"><label>Username</label><input name="username"></div>
-          <div class="form-row"><label>Password</label><input name="password" type="password"></div>
+          <div class="form-row"><label>Username</label><input name="username" placeholder="Controller username"></div>
+          <div class="form-row"><label>Password</label><input name="password" type="password" placeholder="Controller password"></div>
         </div>
       </div>
-      <button type="submit">Add Profile</button>
+      <button type="submit" style="margin-top:8px">Add Profile</button>
     </form>
   </div>
 
   <div class="card">
     <h2>OpenAPI Spec</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px">The tool uses an OpenAPI spec to discover resources. Controllers don't serve their spec — import a newer one from the <a href="https://www.tp-link.com/support/download/omada-software-controller/" target="_blank" rel="noopener">TP-Link download page</a> (included in the controller package as <code>openapi.json</code>).</p>
+    <p style="font-size:13px;color:#5E696F;margin-bottom:12px">The tool uses an OpenAPI spec to discover resources. Controllers don't serve their spec — import a newer one from the <a href="https://www.tp-link.com/support/download/omada-software-controller/" target="_blank" rel="noopener" style="color:#0492eb;text-decoration:none;font-weight:500">TP-Link download page</a> (included in the controller package as <code style="background:#F8F9FB;padding:2px 6px;border-radius:4px;font-size:12px">openapi.json</code>).</p>
     <div id="spec-list"></div>
-    <div style="margin-top:12px">
+    <div style="margin-top:16px">
       <label>Import Spec from File</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="spec-import-path" placeholder="/path/to/openapi.json" style="flex:1">
@@ -161,15 +247,15 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
   <div class="migrate-step" id="mstep-1">
     <div class="card">
       <h2>Step 1: Select Source</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">Choose a snapshot from a previously read controller, or read a new one.</p>
+      <p style="font-size:13px;color:#5E696F;margin-bottom:16px">Choose a snapshot from a previously read controller, or read a new one.</p>
       <div class="form-grid">
         <div>
-          <label>Use Existing Snapshot</label>
+          <h3>Use Existing Snapshot</h3>
           <select id="m-source-snapshot"><option value="">-- Select snapshot --</option></select>
           <button id="btn-m-use-snapshot" style="margin-top:4px">Use Snapshot</button>
         </div>
-        <div style="border-left: 1px solid #eee; padding-left: 12px;">
-          <label>Or Read From Controller</label>
+        <div style="border-left: 1px solid #EBECED; padding-left: 16px;">
+          <h3>Read From Controller</h3>
           <select id="m-source-profile"></select>
           <select id="m-source-site"><option value="">Load sites first</option></select>
           <div style="display:flex;gap:8px;margin-top:4px">
@@ -178,7 +264,7 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
           </div>
         </div>
       </div>
-      <div id="m-source-status" style="margin-top:12px"></div>
+      <div id="m-source-status" style="margin-top:16px"></div>
     </div>
   </div>
 
@@ -187,7 +273,7 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
     <div id="m-version-display"></div>
     <div class="card">
       <h2>Step 2: Select Target</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">Choose the target controller and site to migrate to.</p>
+      <p style="font-size:13px;color:#5E696F;margin-bottom:16px">Choose the target controller and site to migrate to.</p>
       <div class="form-grid">
         <div class="form-row"><label>Target Profile</label><select id="m-target-profile"></select></div>
         <div class="form-row"><label>Target Site</label><select id="m-target-site"><option value="">Load sites first</option></select></div>
@@ -208,8 +294,7 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
       <div id="m-diff-progress"></div>
       <div id="m-diff-results" class="hidden">
         <div class="toggle">
-          <label><input type="checkbox" id="m-hide-identical" checked> Hide identical</label>
-          <label style="margin-left:16px"><input type="checkbox" id="m-show-details"> Show field details</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="m-hide-identical" checked style="width:16px;height:16px;accent-color:#0492eb"> Hide identical</label>
         </div>
         <div id="m-diff-content"></div>
       </div>
@@ -217,7 +302,7 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
     <div id="m-plan-section" class="hidden card">
       <h2>Write Plan</h2>
       <div id="m-plan-preview"></div>
-      <div style="margin-top:12px;display:flex;gap:8px">
+      <div style="margin-top:16px;display:flex;gap:8px">
         <button id="btn-m-execute">Execute Plan</button>
         <button id="btn-m-back-to-diff" class="secondary">Back</button>
       </div>
@@ -230,7 +315,7 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
       <h2>Step 4: Execution</h2>
       <div class="progress-bar"><div class="progress-fill" id="m-exec-progress" style="width:0%">0%</div></div>
       <div class="progress-label" id="m-exec-label">Starting...</div>
-      <div id="m-exec-log" style="max-height:300px;overflow:auto;font-size:12px;margin-top:12px"></div>
+      <div id="m-exec-log" style="max-height:300px;overflow:auto;font-size:12px;margin-top:16px"></div>
     </div>
   </div>
 </div>
@@ -239,22 +324,26 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
 <div class="tab-content" id="tab-devices">
   <div class="card">
     <h2>Device Migration</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px">Move devices between controllers: forget from source, then adopt on target. Do this <strong>before</strong> migrating device-specific settings.</p>
-    <div class="status-bar warning" style="font-size:12px">Devices must be able to reach the target controller over the network (same subnet or routed). If source and target are on different subnets, ensure devices can reach the target's IP before migrating.</div>
+    <p style="font-size:13px;color:#5E696F;margin-bottom:12px">Move devices between controllers: forget from source, then adopt on target. Do this <strong>before</strong> migrating device-specific settings.</p>
+    <div class="status-bar warning">Devices must be able to reach the target controller over the network (same subnet or routed). If source and target are on different subnets, ensure devices can reach the target's IP before migrating.</div>
     <div class="form-grid">
       <div>
-        <h2 style="margin-top:0">Source</h2>
+        <h3>Source</h3>
         <div class="form-row"><label>Profile</label><select id="dev-source-profile"></select></div>
         <div class="form-row"><label>Site</label><select id="dev-source-site"></select></div>
-        <button id="btn-dev-load-source-sites">Load Sites</button>
-        <button id="btn-dev-list-source" style="margin-left:8px">List Devices</button>
+        <div style="display:flex;gap:8px">
+          <button id="btn-dev-load-source-sites" class="secondary">Load Sites</button>
+          <button id="btn-dev-list-source">List Devices</button>
+        </div>
       </div>
       <div>
-        <h2 style="margin-top:0">Target</h2>
+        <h3>Target</h3>
         <div class="form-row"><label>Profile</label><select id="dev-target-profile"></select></div>
         <div class="form-row"><label>Site</label><select id="dev-target-site"></select></div>
-        <button id="btn-dev-load-target-sites">Load Sites</button>
-        <button id="btn-dev-list-pending" style="margin-left:8px">List Pending</button>
+        <div style="display:flex;gap:8px">
+          <button id="btn-dev-load-target-sites" class="secondary">Load Sites</button>
+          <button id="btn-dev-list-pending">List Pending</button>
+        </div>
       </div>
     </div>
   </div>
@@ -262,27 +351,27 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
   <div id="dev-source-devices" class="hidden card">
     <h2>Source Devices (Adopted)</h2>
     <div id="dev-source-table"></div>
-    <div style="margin-top:12px">
-      <p style="font-size:12px;color:#666;margin-bottom:4px"><strong>Source credentials</strong> (auto-fetched — override only if source device-account doesn't match devices):</p>
+    <div style="margin-top:16px">
+      <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Source credentials</strong> (auto-fetched — override only if source device-account doesn't match devices):</p>
       <div class="form-grid" style="margin-bottom:12px">
         <div class="form-row"><label>Source Device Username</label><input id="dev-credentials-user" placeholder="auto-detect from source"></div>
         <div class="form-row"><label>Source Device Password</label><input id="dev-credentials-pass" type="password" placeholder="auto-detect from source"></div>
       </div>
-      <p style="font-size:12px;color:#666;margin-bottom:4px"><strong>Target credentials</strong> (optional — if set, devices will end up with these new credentials after adoption):</p>
-      <div class="form-grid" style="margin-bottom:8px">
+      <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Target credentials</strong> (optional — if set, devices will end up with these new credentials after adoption):</p>
+      <div class="form-grid" style="margin-bottom:12px">
         <div class="form-row"><label>New Device Username</label><input id="dev-target-creds-user" placeholder="leave empty = use source credentials"></div>
         <div class="form-row"><label>New Device Password</label><input id="dev-target-creds-pass" type="password" placeholder="leave empty = use source credentials"></div>
       </div>
-      <button id="btn-dev-forget" class="danger">Forget Selected & Adopt on Target</button>
+      <button id="btn-dev-forget" class="danger">Forget Selected &amp; Adopt on Target</button>
     </div>
   </div>
 
   <div id="dev-target-devices" class="hidden card">
     <h2>Target Pending Devices</h2>
     <div id="dev-target-table"></div>
-    <div style="margin-top:12px">
-      <p style="font-size:12px;color:#666;margin-bottom:8px">Enter the device's current SSH credentials (from the controller that previously managed it):</p>
-      <div class="form-grid" style="margin-bottom:8px">
+    <div style="margin-top:16px">
+      <p style="font-size:12px;color:#5E696F;margin-bottom:8px">Enter the device's current SSH credentials (from the controller that previously managed it):</p>
+      <div class="form-grid" style="margin-bottom:12px">
         <div class="form-row"><label>Device Username</label><input id="dev-adopt-user" placeholder="admin"></div>
         <div class="form-row"><label>Device Password</label><input id="dev-adopt-pass" type="password"></div>
       </div>
@@ -305,11 +394,11 @@ th { background: #fafafa; font-weight: 600; font-size: 13px; }
   <div id="snapshot-detail" class="hidden">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2 id="snapshot-detail-title"></h2>
+        <h2 id="snapshot-detail-title" style="margin:0"></h2>
         <button class="secondary" onclick="closeSnapshotDetail()">Close</button>
       </div>
-      <div id="snapshot-meta" style="margin:8px 0;font-size:13px;color:#666"></div>
-      <div class="toggle"><label><input type="checkbox" id="snap-hide-empty" checked> Hide empty resources</label></div>
+      <div id="snapshot-meta" style="margin:12px 0;font-size:13px;color:#5E696F"></div>
+      <div class="toggle"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="snap-hide-empty" checked style="width:16px;height:16px;accent-color:#0492eb"> Hide empty resources</label></div>
       <div id="snapshot-resources"></div>
     </div>
   </div>
@@ -348,9 +437,9 @@ async function loadProfiles() {
   const resp = await fetch(API + '/api/profiles');
   const profiles = await resp.json();
   const list = document.getElementById('profile-list');
-  if (!profiles.length) { list.innerHTML = '<p style="color:#999">No profiles configured.</p>'; return; }
+  if (!profiles.length) { list.innerHTML = '<p style="color:#868E93">No profiles configured.</p>'; return; }
   list.innerHTML = '<table><tr><th>Name</th><th>Type</th><th>URL</th><th></th></tr>' +
-    profiles.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.url}</td><td><button class="danger" onclick="deleteProfile('${p.name}')">Delete</button></td></tr>`).join('') +
+    profiles.map(p => `<tr><td>${p.name}</td><td><span class="badge badge-ok">${p.type}</span></td><td style="color:#5E696F">${p.url}</td><td><button class="danger" onclick="deleteProfile('${p.name}')" style="padding:4px 12px;font-size:12px">Delete</button></td></tr>`).join('') +
     '</table>';
 }
 
@@ -576,15 +665,30 @@ function humanKey(key) {
   return key.replace(/[{}\/_-]/g, m => m === '/' ? ' > ' : m === '_' || m === '-' ? ' ' : '').replace(/\s+/g, ' ').trim();
 }
 
+function bestName(obj) {
+  const candidates = ['name', 'ssid', 'profileName', 'ssidName', 'ruleName', 'policyName', 'description', 'gatewayIp', 'mac'];
+  for (const key of candidates) {
+    if (obj[key] && typeof obj[key] === 'string' && obj[key].trim()) return obj[key].trim();
+  }
+  // Fallback: first 2 non-ID string field values
+  const fallbacks = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === 'string' && v.trim() && !k.toLowerCase().endsWith('id') && k !== 'id') {
+      fallbacks.push(v.trim());
+      if (fallbacks.length >= 2) break;
+    }
+  }
+  if (fallbacks.length) return fallbacks.join(' — ');
+  return 'Unnamed';
+}
+
 function renderMigrateDiff() {
   const hideIdentical = document.getElementById('m-hide-identical').checked;
-  const showDetails = document.getElementById('m-show-details').checked;
   const container = document.getElementById('m-diff-content');
   let html = '';
 
   const sortedKeys = Object.keys(currentDiff).sort((a, b) => {
     const ad = currentDiff[a], bd = currentDiff[b];
-    // Sort: differs first, then source_only, then target_only, then identical
     const score = d => (d.differs || 0) * 100 + (d.source_only || 0) * 10 + (d.target_only || 0);
     return score(bd) - score(ad);
   });
@@ -593,7 +697,7 @@ function renderMigrateDiff() {
     const data = currentDiff[key];
     if (data.status !== 'ok') {
       if (data.status === 'skipped') continue;
-      html += `<div class="resource-group"><div class="resource-header"><span>${humanKey(key)}</span><span class="badge badge-${data.status}">${data.status}</span></div></div>`;
+      html += `<div class="resource-group"><div class="resource-header"><span class="chevron">▶</span><span class="group-name">${humanKey(key)}</span><span class="group-counts"><span class="badge badge-${data.status}">${data.status}</span></span></div><div class="resource-body"></div></div>`;
       continue;
     }
 
@@ -607,47 +711,75 @@ function renderMigrateDiff() {
     // Differs
     if (data.diff_details) {
       data.diff_details.forEach((d, i) => {
-        const name = d.source.name || d.source.ssid || d.source.profileName || d.source.ruleName || 'Object';
-        let detail = '';
-        if (showDetails && d.changed_fields) {
-          detail = '<table class="diff-field-table">' + d.changed_fields.map(f => {
-            const desc = fieldDescs[f] ? `<span class="field-desc">(${fieldDescs[f]})</span>` : '';
-            const sv = formatVal(d.source[f]);
-            const tv = formatVal(d.target[f]);
-            return `<tr><td class="field-name">${f}${desc}</td><td class="val-source">${sv}</td><td>→</td><td class="val-target">${tv}</td></tr>`;
-          }).join('') + '</table>';
-        }
-        items.push(`<div class="diff-item differs"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="update" data-idx="${i}"> <strong>${escHtml(name)}</strong> — ${d.changed_fields.length} field(s) differ</div>${detail}</div>`);
+        const name = bestName(d.source);
+        const itemId = `diff-item-${key.replace(/[^a-zA-Z0-9]/g, '_')}-differs-${i}`;
+        let detailHtml = buildDiffersDetail(d, fieldDescs);
+        items.push(`<div class="diff-item differs">
+          <div class="diff-item-header" onclick="toggleItemDetail('${itemId}')">
+            <span class="item-chevron" id="${itemId}-chevron">▶</span>
+            <span class="item-checkbox"><input type="checkbox" data-key="${key}" data-op="update" data-idx="${i}" onclick="event.stopPropagation()"></span>
+            <span class="item-name">${escHtml(name)}</span>
+            <span class="item-meta">${d.changed_fields.length} field(s) differ</span>
+          </div>
+          <div class="diff-item-detail" id="${itemId}">${detailHtml}</div>
+        </div>`);
       });
     }
     // Source-only
     if (data.source_only_items) {
       data.source_only_items.forEach((s, i) => {
-        const name = s.name || s.ssid || s.profileName || s.ruleName || 'Object';
-        items.push(`<div class="diff-item source-only"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="create" data-idx="${i}"> <strong>${escHtml(name)}</strong> — will be created on target</div></div>`);
+        const name = bestName(s);
+        const itemId = `diff-item-${key.replace(/[^a-zA-Z0-9]/g, '_')}-source-${i}`;
+        let detailHtml = buildObjectDetail(s, fieldDescs);
+        items.push(`<div class="diff-item source-only">
+          <div class="diff-item-header" onclick="toggleItemDetail('${itemId}')">
+            <span class="item-chevron" id="${itemId}-chevron">▶</span>
+            <span class="item-checkbox"><input type="checkbox" data-key="${key}" data-op="create" data-idx="${i}" onclick="event.stopPropagation()"></span>
+            <span class="item-name">${escHtml(name)}</span>
+            <span class="item-meta">will be created on target</span>
+          </div>
+          <div class="diff-item-detail" id="${itemId}">${detailHtml}</div>
+        </div>`);
       });
     }
     // Target-only
     if (data.target_only_items) {
       data.target_only_items.forEach((t, i) => {
-        const name = t.name || t.ssid || t.profileName || t.ruleName || 'Object';
-        items.push(`<div class="diff-item target-only"><div class="checkbox-row"><input type="checkbox" data-key="${key}" data-op="delete" data-idx="${i}"> <strong>${escHtml(name)}</strong> — exists only on target (delete?)</div></div>`);
+        const name = bestName(t);
+        const itemId = `diff-item-${key.replace(/[^a-zA-Z0-9]/g, '_')}-target-${i}`;
+        let detailHtml = buildObjectDetail(t, fieldDescs);
+        items.push(`<div class="diff-item target-only">
+          <div class="diff-item-header" onclick="toggleItemDetail('${itemId}')">
+            <span class="item-chevron" id="${itemId}-chevron">▶</span>
+            <span class="item-checkbox"><input type="checkbox" data-key="${key}" data-op="delete" data-idx="${i}" onclick="event.stopPropagation()"></span>
+            <span class="item-name">${escHtml(name)}</span>
+            <span class="item-meta">exists only on target</span>
+          </div>
+          <div class="diff-item-detail" id="${itemId}">${detailHtml}</div>
+        </div>`);
       });
     }
 
-    const identicalCount = data.identical || 0;
     const displayName = humanKey(key);
-    const counts = `${data.differs || 0} changed, ${data.source_only || 0} new, ${data.target_only || 0} target-only, ${identicalCount} identical`;
+    const groupId = `group-${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let countBadges = '';
+    if (data.differs) countBadges += `<span class="count-badge changed">${data.differs}</span>`;
+    if (data.source_only) countBadges += `<span class="count-badge new">${data.source_only}</span>`;
+    if (data.target_only) countBadges += `<span class="count-badge target-only">${data.target_only}</span>`;
+
+    const startExpanded = hasDiffs;
 
     html += `<div class="resource-group">
-      <div class="resource-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
-        <span>${displayName}</span><span style="font-size:12px;color:#666">${counts}</span>
+      <div class="resource-header" onclick="toggleResourceGroup('${groupId}')">
+        <span class="chevron${startExpanded ? ' expanded' : ''}" id="${groupId}-chevron">▶</span>
+        <span class="group-name">${displayName}</span>
+        <span class="group-counts">${countBadges}</span>
       </div>
-      <div${hasDiffs ? '' : ' class="hidden"'}>${items.join('')}</div>
+      <div class="resource-body${startExpanded ? ' expanded' : ''}" id="${groupId}">${items.join('')}</div>
     </div>`;
   }
 
-  container.innerHTML = html || '<p style="color:#999">No differences found. Source and target are identical.</p>';
+  container.innerHTML = html || '<p style="color:#868E93">No differences found. Source and target are identical.</p>';
 
   // Wire checkboxes
   container.querySelectorAll('input[type=checkbox]').forEach(cb => {
@@ -655,8 +787,68 @@ function renderMigrateDiff() {
   });
 }
 
+function toggleResourceGroup(id) {
+  const body = document.getElementById(id);
+  const chevron = document.getElementById(id + '-chevron');
+  if (body) {
+    body.classList.toggle('expanded');
+    chevron.classList.toggle('expanded');
+  }
+}
+
+function toggleItemDetail(id) {
+  const detail = document.getElementById(id);
+  const chevron = document.getElementById(id + '-chevron');
+  if (detail) {
+    detail.classList.toggle('expanded');
+    chevron.classList.toggle('expanded');
+  }
+}
+
+function buildDiffersDetail(d, fieldDescs) {
+  const changedSet = new Set(d.changed_fields || []);
+  let rows = '';
+  // Changed fields first (highlighted)
+  for (const f of d.changed_fields) {
+    const desc = fieldDescs[f] ? `<span class="field-desc">${escHtml(fieldDescs[f])}</span>` : '';
+    const sv = formatFieldVal(d.source[f]);
+    const tv = formatFieldVal(d.target[f]);
+    rows += `<tr><td class="field-name">${escHtml(f)}${desc}</td><td class="val-source">${sv}</td><td class="val-target">${tv}</td></tr>`;
+  }
+  // Remaining fields
+  for (const [f, v] of Object.entries(d.source)) {
+    if (changedSet.has(f) || HIDDEN_FIELDS.has(f) || f.startsWith('_')) continue;
+    const desc = fieldDescs[f] ? `<span class="field-desc">${escHtml(fieldDescs[f])}</span>` : '';
+    rows += `<tr><td class="field-name">${escHtml(f)}${desc}</td><td class="val-neutral" colspan="2">${formatFieldVal(v)}</td></tr>`;
+  }
+  return `<table class="diff-field-table"><tr><th>Field</th><th>Source</th><th>Target</th></tr>${rows}</table>`;
+}
+
+const HIDDEN_FIELDS = new Set(['_parents', '_parent', '_target_id', 'id', 'ssidId', 'wlanId', 'createTime', 'modifyTime', 'updateTime', 'createUser', 'modifyUser', 'siteId', 'omadacId']);
+
+function buildObjectDetail(obj, fieldDescs) {
+  let rows = '';
+  for (const [f, v] of Object.entries(obj)) {
+    if (HIDDEN_FIELDS.has(f) || f.startsWith('_')) continue;
+    const desc = fieldDescs[f] ? `<span class="field-desc">${escHtml(fieldDescs[f])}</span>` : '';
+    rows += `<tr><td class="field-name">${escHtml(f)}${desc}</td><td class="val-neutral">${formatFieldVal(v)}</td></tr>`;
+  }
+  return `<table class="diff-field-table"><tr><th>Field</th><th>Value</th></tr>${rows}</table>`;
+}
+
+function formatFieldVal(v) {
+  if (v === null || v === undefined) return '<span class="val-null">—</span>';
+  if (typeof v === 'boolean') return v ? '<span style="color:#00A870">Enabled</span>' : '<span style="color:#868E93">Disabled</span>';
+  if (Array.isArray(v)) return `<span style="color:#5E696F">[${v.length} item${v.length !== 1 ? 's' : ''}]</span>`;
+  if (typeof v === 'object') {
+    const keys = Object.keys(v);
+    const preview = keys.slice(0, 3).map(k => `${k}: ${typeof v[k] === 'string' ? v[k] : '...'}`).join(', ');
+    return `<span style="color:#5E696F">{${preview}${keys.length > 3 ? ', ...' : ''}}</span>`;
+  }
+  return escHtml(String(v));
+}
+
 document.getElementById('m-hide-identical').addEventListener('change', renderMigrateDiff);
-document.getElementById('m-show-details').addEventListener('change', renderMigrateDiff);
 
 function updateMigratePlan() {
   selectedOps = [];
@@ -668,13 +860,13 @@ function updateMigratePlan() {
 
     if (op === 'create') {
       const obj = data.source_only_items[idx];
-      selectedOps.push({resource_key: key, op_type: 'create', object_name: obj.name || obj.ssid || 'unnamed', payload: obj, source_id: objId(obj)});
+      selectedOps.push({resource_key: key, op_type: 'create', object_name: bestName(obj), payload: obj, source_id: objId(obj)});
     } else if (op === 'update') {
       const d = data.diff_details[idx];
-      selectedOps.push({resource_key: key, op_type: 'update', object_name: d.source.name || d.source.ssid || 'unnamed', payload: d.source, source_id: objId(d.source), target_id: objId(d.target)});
+      selectedOps.push({resource_key: key, op_type: 'update', object_name: bestName(d.source), payload: d.source, source_id: objId(d.source), target_id: objId(d.target)});
     } else if (op === 'delete') {
       const obj = data.target_only_items[idx];
-      selectedOps.push({resource_key: key, op_type: 'delete', object_name: obj.name || obj.ssid || 'unnamed', payload: {}, target_id: objId(obj)});
+      selectedOps.push({resource_key: key, op_type: 'delete', object_name: bestName(obj), payload: {}, target_id: objId(obj)});
     }
   });
 
@@ -735,20 +927,20 @@ function handleExecEvent(event, d) {
     const icon = d.result === 'ok' ? '✓' : d.result === 'error' ? '✗' : '⌛';
     document.getElementById('m-exec-label').textContent = `${icon} ${d.op} ${d.name} (pass ${d.pass || 1})`;
     if (d.result) {
-      const color = d.result === 'ok' ? '#2e7d32' : '#c62828';
-      document.getElementById('m-exec-log').innerHTML += `<div style="color:${color}">${d.op} ${escHtml(d.name)}: ${d.result}${d.error ? ' — ' + escHtml(d.error) : ''}</div>`;
+      const color = d.result === 'ok' ? '#00A870' : '#ff2954';
+      document.getElementById('m-exec-log').innerHTML += `<div style="color:${color};padding:2px 0">${d.op} ${escHtml(d.name)}: ${d.result}${d.error ? ' — ' + escHtml(d.error) : ''}</div>`;
     }
   } else if (event === 'done') {
     document.getElementById('m-exec-progress').style.width = '100%';
     document.getElementById('m-exec-progress').textContent = '100%';
     document.getElementById('m-exec-label').textContent = `Done: ${d.succeeded} succeeded, ${d.failed} failed`;
     if (d.failures && d.failures.length) {
-      document.getElementById('m-exec-log').innerHTML += '<hr>' + d.failures.map(f => `<div style="color:#c62828">✗ ${escHtml(f.name)}: ${escHtml(f.reason)}</div>`).join('');
+      document.getElementById('m-exec-log').innerHTML += '<hr style="border:none;border-top:1px solid #EBECED;margin:8px 0">' + d.failures.map(f => `<div style="color:#ff2954;padding:2px 0">✗ ${escHtml(f.name)}: ${escHtml(f.reason)}</div>`).join('');
     }
   }
 }
 
-// Devices tab (unchanged logic, just using loadProfileSelects)
+// Devices tab
 document.getElementById('btn-dev-load-source-sites').addEventListener('click', async () => {
   const profile = document.getElementById('dev-source-profile').value;
   const resp = await fetch(API + '/api/profiles/' + encodeURIComponent(profile) + '/sites');
@@ -773,12 +965,12 @@ document.getElementById('btn-dev-list-source').addEventListener('click', async (
   el.classList.remove('hidden');
   const devices = data.devices || [];
   if (!devices.length) {
-    document.getElementById('dev-source-table').innerHTML = '<p style="color:#999">No adopted devices.</p>';
+    document.getElementById('dev-source-table').innerHTML = '<p style="color:#868E93">No adopted devices.</p>';
     return;
   }
   const statusMap = {0:'⌛ Disconnected', 1:'✓ Connected', 2:'⌛ Pending', 3:'⚠ Heartbeat lost', 4:'⌛ Adopting'};
-  document.getElementById('dev-source-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-src-all"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th><th>Status</th></tr>' +
-    devices.map(d => `<tr><td><input type="checkbox" class="dev-src-check" value="${d.mac}"></td><td>${d.name||'—'}</td><td>${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td><td>${statusMap[d.status]||'? ('+d.status+')'}</td></tr>`).join('') +
+  document.getElementById('dev-source-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-src-all" style="width:16px;height:16px;accent-color:#0492eb"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th><th>Status</th></tr>' +
+    devices.map(d => `<tr><td><input type="checkbox" class="dev-src-check" value="${d.mac}" style="width:16px;height:16px;accent-color:#0492eb"></td><td>${d.name||'—'}</td><td style="font-family:monospace;font-size:12px">${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td><td>${statusMap[d.status]||'? ('+d.status+')'}</td></tr>`).join('') +
     '</table>';
   document.getElementById('dev-src-all').addEventListener('change', (e) => {
     document.querySelectorAll('.dev-src-check').forEach(cb => cb.checked = e.target.checked);
@@ -795,11 +987,11 @@ document.getElementById('btn-dev-list-pending').addEventListener('click', async 
   el.classList.remove('hidden');
   const devices = data.devices || [];
   if (!devices.length) {
-    document.getElementById('dev-target-table').innerHTML = '<p style="color:#999">No pending devices.</p>';
+    document.getElementById('dev-target-table').innerHTML = '<p style="color:#868E93">No pending devices.</p>';
     return;
   }
-  document.getElementById('dev-target-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-tgt-all"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th></tr>' +
-    devices.map(d => `<tr><td><input type="checkbox" class="dev-tgt-check" value="${d.mac}"></td><td>${d.name||'—'}</td><td>${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td></tr>`).join('') +
+  document.getElementById('dev-target-table').innerHTML = '<table><tr><th><input type="checkbox" id="dev-tgt-all" style="width:16px;height:16px;accent-color:#0492eb"></th><th>Name</th><th>MAC</th><th>Type</th><th>Model</th></tr>' +
+    devices.map(d => `<tr><td><input type="checkbox" class="dev-tgt-check" value="${d.mac}" style="width:16px;height:16px;accent-color:#0492eb"></td><td>${d.name||'—'}</td><td style="font-family:monospace;font-size:12px">${d.mac}</td><td>${d.type||'—'}</td><td>${d.model||'—'}</td></tr>`).join('') +
     '</table>';
   document.getElementById('dev-tgt-all').addEventListener('change', (e) => {
     document.querySelectorAll('.dev-tgt-check').forEach(cb => cb.checked = e.target.checked);
@@ -824,9 +1016,9 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
   statusEl.classList.remove('hidden');
   logEl.innerHTML = '';
 
-  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#333'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#2B2B2B'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
 
-  log(`⌛ Fetching device credentials from ${sourceProfile}...`, '#555');
+  log(`⌛ Fetching device credentials from ${sourceProfile}...`, '#5E696F');
   let srcUser = document.getElementById('dev-credentials-user').value;
   let srcPass = document.getElementById('dev-credentials-pass').value;
   if (!srcUser) {
@@ -836,11 +1028,11 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
       if (acctData.account) {
         srcUser = acctData.account.username || '';
         srcPass = acctData.account.password || '';
-        log(`✓ Got source credentials: user="${srcUser}"`, '#2e7d32');
+        log(`✓ Got source credentials: user="${srcUser}"`, '#00A870');
       } else {
-        log(`⚠ No device account on source`, '#e65100');
+        log(`⚠ No device account on source`, '#ff9500');
       }
-    } catch (e) { log(`⚠ Could not fetch device account: ${e.message}`, '#e65100'); }
+    } catch (e) { log(`⚠ Could not fetch device account: ${e.message}`, '#ff9500'); }
   }
 
   const newUser = document.getElementById('dev-target-creds-user').value;
@@ -848,17 +1040,17 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
   const adoptUser = newUser || srcUser;
   const adoptPass = newPass || srcPass;
   if (adoptUser && adoptPass) {
-    log(`⌛ Setting target device-account...`, '#555');
+    log(`⌛ Setting target device-account...`, '#5E696F');
     try {
       await fetch(API + '/api/devices/device-account', {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, username: adoptUser, password: adoptPass})
       });
-      log(`✓ Target device-account set`, '#2e7d32');
-    } catch (e) { log(`⚠ Could not set target device-account: ${e.message}`, '#e65100'); }
+      log(`✓ Target device-account set`, '#00A870');
+    } catch (e) { log(`⚠ Could not set target device-account: ${e.message}`, '#ff9500'); }
   }
 
-  log(`⌛ Forgetting ${selected.length} device(s)...`, '#555');
+  log(`⌛ Forgetting ${selected.length} device(s)...`, '#5E696F');
   const forgotten = [];
   for (const mac of selected) {
     try {
@@ -866,14 +1058,14 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({profile_name: sourceProfile, site_id: sourceSite, device_mac: mac})
       });
-      if (resp.ok) { forgotten.push(mac); log(`✓ Forgot ${mac}`, '#2e7d32'); }
-      else { const err = await resp.json(); log(`✗ Failed ${mac}: ${err.detail}`, '#c62828'); }
-    } catch (e) { log(`✗ Error ${mac}: ${e.message}`, '#c62828'); }
+      if (resp.ok) { forgotten.push(mac); log(`✓ Forgot ${mac}`, '#00A870'); }
+      else { const err = await resp.json(); log(`✗ Failed ${mac}: ${err.detail}`, '#ff2954'); }
+    } catch (e) { log(`✗ Error ${mac}: ${e.message}`, '#ff2954'); }
   }
 
-  if (!forgotten.length) { log('No devices forgotten. Aborting.', '#c62828'); return; }
+  if (!forgotten.length) { log('No devices forgotten. Aborting.', '#ff2954'); return; }
 
-  log(`⌛ Waiting for devices to appear pending on target...`, '#555');
+  log(`⌛ Waiting for devices to appear pending on target...`, '#5E696F');
   const remaining = new Set(forgotten);
   const deadline = Date.now() + 300000;
   let waitEl = null;
@@ -884,26 +1076,26 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
       const data = await resp.json();
       const pendingMacs = new Set((data.devices || []).map(d => d.mac));
       for (const mac of [...remaining]) {
-        if (pendingMacs.has(mac)) { remaining.delete(mac); log(`✓ ${mac} pending`, '#2e7d32'); waitEl = null; }
+        if (pendingMacs.has(mac)) { remaining.delete(mac); log(`✓ ${mac} pending`, '#00A870'); waitEl = null; }
       }
       if (remaining.size > 0) {
         const secs = Math.round((deadline - Date.now()) / 1000);
-        if (!waitEl) { log(`… waiting for ${remaining.size} device(s) (${secs}s remaining)`, '#555'); waitEl = logEl.lastChild; }
+        if (!waitEl) { log(`… waiting for ${remaining.size} device(s) (${secs}s remaining)`, '#5E696F'); waitEl = logEl.lastChild; }
         else { waitEl.textContent = `… waiting for ${remaining.size} device(s) (${secs}s remaining)`; }
       }
     } catch (e) { /* retry */ }
   }
 
-  log(`⌛ Adopting ${forgotten.length} device(s)...`, '#555');
+  log(`⌛ Adopting ${forgotten.length} device(s)...`, '#5E696F');
   try {
     await fetch(API + '/api/devices/adopt', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, device_macs: forgotten})
     });
-    log(`✓ Batch adopt sent`, '#2e7d32');
-  } catch (e) { log(`✗ Adopt error: ${e.message}`, '#c62828'); return; }
+    log(`✓ Batch adopt sent`, '#00A870');
+  } catch (e) { log(`✗ Adopt error: ${e.message}`, '#ff2954'); return; }
 
-  log(`⌛ Waiting for adoption...`, '#555');
+  log(`⌛ Waiting for adoption...`, '#5E696F');
   const adoptDeadline = Date.now() + 300000;
   const adoptPending = new Set(forgotten);
   let lastAdoptSend = Date.now();
@@ -915,12 +1107,12 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
       const data = await resp.json();
       for (const mac of [...adoptPending]) {
         const dev = (data.devices || []).find(d => d.mac === mac);
-        if (dev && dev.status === 1) { adoptPending.delete(mac); log(`✓ ${mac} connected!`, '#2e7d32'); adoptWaitEl = null; }
+        if (dev && dev.status === 1) { adoptPending.delete(mac); log(`✓ ${mac} connected!`, '#00A870'); adoptWaitEl = null; }
       }
     } catch (e) { /* retry */ }
     if (adoptPending.size > 0) {
       const secs = Math.round((adoptDeadline - Date.now()) / 1000);
-      if (!adoptWaitEl) { log(`… provisioning ${adoptPending.size} device(s) (${secs}s remaining)`, '#555'); adoptWaitEl = logEl.lastChild; }
+      if (!adoptWaitEl) { log(`… provisioning ${adoptPending.size} device(s) (${secs}s remaining)`, '#5E696F'); adoptWaitEl = logEl.lastChild; }
       else { adoptWaitEl.textContent = `… provisioning ${adoptPending.size} device(s) (${secs}s remaining)`; }
     }
     if (adoptPending.size > 0 && Date.now() - lastAdoptSend > 60000) {
@@ -928,9 +1120,9 @@ document.getElementById('btn-dev-forget').addEventListener('click', async () => 
       lastAdoptSend = Date.now();
     }
   }
-  if (adoptPending.size === 0) log(`✓ All devices migrated!`, '#2e7d32');
-  else log(`⚠ ${adoptPending.size} device(s) not fully connected yet.`, '#e65100');
-  log(`Next: use the Migrate tab to apply per-device config.`, '#555');
+  if (adoptPending.size === 0) log(`✓ All devices migrated!`, '#00A870');
+  else log(`⚠ ${adoptPending.size} device(s) not fully connected yet.`, '#ff9500');
+  log(`Next: use the Migrate tab to apply per-device config.`, '#5E696F');
 });
 
 document.getElementById('btn-dev-adopt').addEventListener('click', async () => {
@@ -947,17 +1139,17 @@ document.getElementById('btn-dev-adopt').addEventListener('click', async () => {
   const logEl = document.getElementById('dev-status-log');
   statusEl.classList.remove('hidden');
   logEl.innerHTML = '';
-  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#333'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+  function log(msg, color) { logEl.innerHTML += `<div style="color:${color||'#2B2B2B'};font-size:13px;margin:4px 0">${msg}</div>`; logEl.scrollTop = logEl.scrollHeight; }
 
   try {
     await fetch(API + '/api/devices/adopt', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, device_macs: selected, username, password})
     });
-    log(`✓ Adopt request sent`, '#2e7d32');
-  } catch (e) { log(`✗ Error: ${e.message}`, '#c62828'); return; }
+    log(`✓ Adopt request sent`, '#00A870');
+  } catch (e) { log(`✗ Error: ${e.message}`, '#ff2954'); return; }
 
-  log(`⌛ Waiting for adoption...`, '#555');
+  log(`⌛ Waiting for adoption...`, '#5E696F');
   const pending = new Set(selected);
   const deadline = Date.now() + 300000;
   while (pending.size > 0 && Date.now() < deadline) {
@@ -967,12 +1159,12 @@ document.getElementById('btn-dev-adopt').addEventListener('click', async () => {
       const data = await resp.json();
       for (const mac of [...pending]) {
         const dev = (data.devices || []).find(d => d.mac === mac);
-        if (dev && dev.status === 1) { pending.delete(mac); log(`✓ ${mac} connected!`, '#2e7d32'); }
+        if (dev && dev.status === 1) { pending.delete(mac); log(`✓ ${mac} connected!`, '#00A870'); }
       }
     } catch (e) {}
   }
-  if (pending.size === 0) log(`✓ All adopted!`, '#2e7d32');
-  else log(`⚠ ${pending.size} still provisioning.`, '#e65100');
+  if (pending.size === 0) log(`✓ All adopted!`, '#00A870');
+  else log(`⚠ ${pending.size} still provisioning.`, '#ff9500');
 });
 
 // Snapshots
@@ -980,9 +1172,9 @@ async function loadSnapshots() {
   const resp = await fetch(API + '/api/snapshots');
   const snaps = await resp.json();
   const el = document.getElementById('snapshot-list');
-  if (!snaps.length) { el.innerHTML = '<p style="color:#999">No snapshots yet.</p>'; return; }
+  if (!snaps.length) { el.innerHTML = '<p style="color:#868E93">No snapshots yet.</p>'; return; }
   el.innerHTML = '<table><tr><th>Filename</th><th></th></tr>' +
-    snaps.map(s => `<tr><td>${s.name}</td><td><button onclick="viewSnapshot('${s.name}')">View</button> <button class="danger" onclick="deleteSnapshot('${s.name}')">Delete</button></td></tr>`).join('') +
+    snaps.map(s => `<tr><td>${s.name}</td><td style="text-align:right"><button onclick="viewSnapshot('${s.name}')" class="secondary" style="padding:4px 12px;font-size:12px">View</button> <button class="danger" onclick="deleteSnapshot('${s.name}')" style="padding:4px 12px;font-size:12px">Delete</button></td></tr>`).join('') +
     '</table>';
 }
 
@@ -1018,7 +1210,7 @@ function renderSnapshotResources(resources) {
     const badge = `<span class="badge badge-${data.status}">${data.status}</span>`;
     let body = '';
     if (data.status !== 'ok' && data.error) {
-      body = `<div style="padding:8px;font-size:12px;color:#c62828">${escHtml(data.error)}</div>`;
+      body = `<div style="padding:12px;font-size:12px;color:#ff2954">${escHtml(data.error)}</div>`;
     } else if (count > 0) {
       const keys = Object.keys(data.objects[0]).slice(0, 10);
       body = '<div style="max-height:300px;overflow:auto;font-size:12px;"><table>' +
@@ -1026,9 +1218,17 @@ function renderSnapshotResources(resources) {
         data.objects.map(obj => '<tr>' + keys.map(k => `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${formatVal(obj[k])}</td>`).join('') + '</tr>').join('') +
         '</table></div>';
     }
-    html += `<div class="resource-group"><div class="resource-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${humanKey(key)} (${count})</span>${badge}</div><div class="hidden">${body}</div></div>`;
+    const snapGroupId = `snap-group-${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    html += `<div class="resource-group">
+      <div class="resource-header" onclick="toggleResourceGroup('${snapGroupId}')">
+        <span class="chevron" id="${snapGroupId}-chevron">▶</span>
+        <span class="group-name">${humanKey(key)} (${count})</span>
+        <span class="group-counts">${badge}</span>
+      </div>
+      <div class="resource-body" id="${snapGroupId}">${body}</div>
+    </div>`;
   }
-  container.innerHTML = html || '<p style="color:#999">No resources.</p>';
+  container.innerHTML = html || '<p style="color:#868E93">No resources.</p>';
 }
 
 function objId(obj) {
@@ -1036,8 +1236,10 @@ function objId(obj) {
 }
 
 function formatVal(v) {
-  if (v === null || v === undefined) return '<span style="color:#999">—</span>';
-  if (typeof v === 'object') return '<span style="color:#888">{...}</span>';
+  if (v === null || v === undefined) return '<span style="color:#868E93">—</span>';
+  if (typeof v === 'boolean') return v ? '<span style="color:#00A870">Enabled</span>' : '<span style="color:#868E93">Disabled</span>';
+  if (Array.isArray(v)) return `<span style="color:#5E696F">[${v.length} item${v.length !== 1 ? 's' : ''}]</span>`;
+  if (typeof v === 'object') return '<span style="color:#5E696F">{...}</span>';
   return escHtml(String(v));
 }
 
@@ -1058,7 +1260,7 @@ async function loadSpecs() {
     specs.map(s => `<tr>
       <td>${escHtml(s.label)}</td>
       <td>${s.active ? '<span class="badge badge-ok">Active</span>' : ''}</td>
-      <td>${s.is_bundled ? '' : `<button class="danger" onclick="deleteSpec('${escHtml(s.name)}')">Delete</button>`}</td>
+      <td style="text-align:right">${s.is_bundled ? '' : `<button class="danger" onclick="deleteSpec('${escHtml(s.name)}')" style="padding:4px 12px;font-size:12px">Delete</button>`}</td>
     </tr>`).join('') + '</table>';
 }
 
