@@ -384,6 +384,24 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                 resources[entry.key] = {"status": "error", "error": str(e), "objects": []}
                 yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "error"})
 
+        # Fetch real PSK from SSID detail endpoint for WPA-Personal SSIDs
+        ssid_key = "wireless-network/wlans/{wlanId}/ssids"
+        if ssid_key in resources and resources[ssid_key]["status"] == "ok":
+            ssids = resources[ssid_key]["objects"]
+            psk_ssids = [s for s in ssids if s.get("security") == 3 and s.get("ssidId")]
+            for ssid_obj in psk_ssids:
+                wlan_id = (ssid_obj.get("_parents") or {}).get("wlanId", "")
+                ssid_id = ssid_obj.get("ssidId", "")
+                if not wlan_id or not ssid_id:
+                    continue
+                detail_url = f"{client._base_url}/openapi/v1/{client._omadac_id}/sites/{site_id}/wireless-network/wlans/{wlan_id}/ssids/{ssid_id}"
+                try:
+                    detail = await client.get_singleton(detail_url)
+                    if detail and isinstance(detail.get("pskSetting"), dict):
+                        ssid_obj["pskSetting"] = detail["pskSetting"]
+                except (OmadaApiError, Exception):
+                    pass
+
         profile = config_store.get_profile(profile_name)
         snapshot_data = {
             "controller": {"name": profile["name"], "type": profile["type"], "url": profile["url"]},
@@ -534,7 +552,8 @@ class WriteRequest(BaseModel):
     target_profile: str
     target_site_id: str
     operations: list[dict[str, Any]]
-    cutover_mode: str = "active"  # "active" | "create_disabled" | "disable_source"
+    cutover_mode: str = "active"  # "active" | "create_disabled"
+    source_profile: str | None = None
 
 
 @app.post("/api/plan")
@@ -609,6 +628,17 @@ async def execute_write_plan(req: WriteRequest):
         target_client = await get_connection(req.target_profile)
         registry = get_registry()
         mapper = IdMapper()
+
+        # Trigger backup on source before writing (if profile available)
+        if req.source_profile:
+            yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup", "name": "Backing up source controller..."})
+            try:
+                source_client = await get_connection(req.source_profile)
+                src_backup_url = f"{source_client._base_url}/openapi/v1/{source_client._omadac_id}/maintenance/backup/self-server"
+                await source_client.request("POST", src_backup_url, json={"retainUser": True})
+                yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_done", "name": "Source backup triggered"})
+            except Exception as e:
+                yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_warn", "name": f"Source backup skipped: {e}"})
 
         # Trigger backup on target before writing
         yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup", "name": "Backing up target controller..."})
