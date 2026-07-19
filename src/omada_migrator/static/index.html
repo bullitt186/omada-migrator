@@ -174,8 +174,7 @@ tr:last-child td { border-bottom: none; }
 
 <div class="tabs">
   <button class="tab active" data-tab="profiles">Profiles</button>
-  <button class="tab" data-tab="migrate">Migrate</button>
-  <button class="tab" data-tab="devices">Devices</button>
+  <button class="tab" data-tab="migration">Migration</button>
   <button class="tab" data-tab="snapshots">Snapshots</button>
 </div>
 
@@ -231,16 +230,39 @@ tr:last-child td { border-bottom: none; }
   </div>
 </div>
 
-<!-- Migrate Tab (Stepper) -->
-<div class="tab-content" id="tab-migrate">
+<!-- Migration Tab -->
+<div class="tab-content" id="tab-migration">
+  <!-- Mode toggle -->
+  <div style="display:flex;gap:0;margin-bottom:16px">
+    <button class="mode-btn active" data-mode="guided" style="border-radius:8px 0 0 8px;border:1px solid #EBECED;padding:8px 20px;font-size:13px;font-weight:600" onclick="setMigrationMode('guided')">Guided Migration</button>
+    <button class="mode-btn" data-mode="custom" style="border-radius:0 8px 8px 0;border:1px solid #EBECED;border-left:0;padding:8px 20px;background:transparent;color:#5E696F;font-size:13px;font-weight:500" onclick="setMigrationMode('custom')">Custom Step</button>
+  </div>
+
+  <!-- Custom mode picker (hidden by default) -->
+  <div id="custom-mode-picker" class="hidden card">
+    <h2>Choose a Step</h2>
+    <p style="font-size:13px;color:#5E696F;margin-bottom:12px">Run an individual migration step without the full guided flow.</p>
+    <div style="display:flex;gap:12px">
+      <button onclick="startCustomStep('site')">Site Settings</button>
+      <button onclick="startCustomStep('devices')">Device Migration</button>
+      <button onclick="startCustomStep('device-settings')">Device Settings</button>
+    </div>
+  </div>
+
+  <!-- Guided stepper -->
+  <div id="guided-mode">
   <div class="stepper" id="migrate-stepper">
     <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Source</span></div>
     <div class="step-connector"></div>
     <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Target</span></div>
     <div class="step-connector"></div>
-    <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Compare</span></div>
+    <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Site Settings</span></div>
     <div class="step-connector"></div>
-    <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Execute</span></div>
+    <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Devices</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="5"><span class="step-num">5</span><span class="step-label">Device Settings</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="6"><span class="step-num">6</span><span class="step-label">Done</span></div>
   </div>
 
   <!-- Step 1: Source -->
@@ -280,17 +302,18 @@ tr:last-child td { border-bottom: none; }
       </div>
       <div style="display:flex;gap:8px">
         <button id="btn-m-load-target-sites" class="secondary">Load Sites</button>
-        <button id="btn-m-diff">Compare</button>
+        <button id="btn-m-diff">Start Migration →</button>
       </div>
       <div id="m-target-status" style="margin-top:12px"></div>
     </div>
   </div>
 
-  <!-- Step 3: Compare -->
+  <!-- Step 3: Site Settings -->
   <div class="migrate-step hidden" id="mstep-3">
     <div id="m-version-compare"></div>
     <div class="card">
-      <h2>Step 3: Review Differences</h2>
+      <h2>Step 3: Site Settings</h2>
+      <p style="font-size:13px;color:#5E696F;margin-bottom:16px">Migrate site-wide settings (networks, SSIDs, firewall rules) before moving devices.</p>
       <div id="m-diff-progress"></div>
       <div id="m-diff-results" class="hidden">
         <div class="toggle">
@@ -304,85 +327,130 @@ tr:last-child td { border-bottom: none; }
       <div id="m-plan-preview"></div>
       <div style="margin-top:16px;display:flex;gap:8px">
         <button id="btn-m-execute">Execute Plan</button>
-        <button id="btn-m-back-to-diff" class="secondary">Back</button>
       </div>
     </div>
-  </div>
-
-  <!-- Step 4: Execute -->
-  <div class="migrate-step hidden" id="mstep-4">
-    <div class="card">
-      <h2>Step 4: Execution</h2>
+    <div id="m-exec-section" class="hidden card">
+      <h2>Executing...</h2>
       <div class="progress-bar"><div class="progress-fill" id="m-exec-progress" style="width:0%">0%</div></div>
       <div class="progress-label" id="m-exec-label">Starting...</div>
       <div id="m-exec-log" style="max-height:300px;overflow:auto;font-size:12px;margin-top:16px"></div>
     </div>
+    <div id="m-step3-nav" class="hidden" style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="goToStep(4)">Continue to Devices →</button>
+      <button class="secondary" onclick="goToStep(4)">Skip →</button>
+    </div>
   </div>
-</div>
 
-<!-- Devices Tab -->
-<div class="tab-content" id="tab-devices">
-  <div class="card">
-    <h2>Device Migration</h2>
-    <p style="font-size:13px;color:#5E696F;margin-bottom:12px">Move devices between controllers: forget from source, then adopt on target. Do this <strong>before</strong> migrating device-specific settings.</p>
-    <div class="status-bar warning">Devices must be able to reach the target controller over the network (same subnet or routed). If source and target are on different subnets, ensure devices can reach the target's IP before migrating.</div>
-    <div class="form-grid">
-      <div>
-        <h3>Source</h3>
-        <div class="form-row"><label>Profile</label><select id="dev-source-profile"></select></div>
-        <div class="form-row"><label>Site</label><select id="dev-source-site"></select></div>
-        <div style="display:flex;gap:8px">
-          <button id="btn-dev-load-source-sites" class="secondary">Load Sites</button>
-          <button id="btn-dev-list-source">List Devices</button>
+  <!-- Step 4: Devices -->
+  <div class="migrate-step hidden" id="mstep-4">
+    <div class="card">
+      <h2>Step 4: Device Migration</h2>
+      <p style="font-size:13px;color:#5E696F;margin-bottom:12px">Move devices from source to target controller. They'll receive the site settings you just migrated.</p>
+      <div class="status-bar warning">Devices must be able to reach the target controller over the network (same subnet or routed path).</div>
+      <div class="form-grid">
+        <div>
+          <h3>Source</h3>
+          <div class="form-row"><label>Profile</label><select id="dev-source-profile"></select></div>
+          <div class="form-row"><label>Site</label><select id="dev-source-site"></select></div>
+          <div style="display:flex;gap:8px">
+            <button id="btn-dev-load-source-sites" class="secondary">Load Sites</button>
+            <button id="btn-dev-list-source">List Devices</button>
+          </div>
+        </div>
+        <div>
+          <h3>Target</h3>
+          <div class="form-row"><label>Profile</label><select id="dev-target-profile"></select></div>
+          <div class="form-row"><label>Site</label><select id="dev-target-site"></select></div>
+          <div style="display:flex;gap:8px">
+            <button id="btn-dev-load-target-sites" class="secondary">Load Sites</button>
+            <button id="btn-dev-list-pending">List Pending</button>
+          </div>
         </div>
       </div>
-      <div>
-        <h3>Target</h3>
-        <div class="form-row"><label>Profile</label><select id="dev-target-profile"></select></div>
-        <div class="form-row"><label>Site</label><select id="dev-target-site"></select></div>
-        <div style="display:flex;gap:8px">
-          <button id="btn-dev-load-target-sites" class="secondary">Load Sites</button>
-          <button id="btn-dev-list-pending">List Pending</button>
+    </div>
+
+    <div id="dev-source-devices" class="hidden card">
+      <h2>Source Devices (Adopted)</h2>
+      <div id="dev-source-table"></div>
+      <div style="margin-top:16px">
+        <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Source credentials</strong> (auto-fetched — override only if needed):</p>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-row"><label>Source Device Username</label><input id="dev-credentials-user" placeholder="auto-detect from source"></div>
+          <div class="form-row"><label>Source Device Password</label><input id="dev-credentials-pass" type="password" placeholder="auto-detect from source"></div>
         </div>
+        <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Target credentials</strong> (optional):</p>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-row"><label>New Device Username</label><input id="dev-target-creds-user" placeholder="leave empty = use source credentials"></div>
+          <div class="form-row"><label>New Device Password</label><input id="dev-target-creds-pass" type="password" placeholder="leave empty = use source credentials"></div>
+        </div>
+        <button id="btn-dev-forget" class="danger">Forget Selected &amp; Adopt on Target</button>
+      </div>
+    </div>
+
+    <div id="dev-target-devices" class="hidden card">
+      <h2>Target Pending Devices</h2>
+      <div id="dev-target-table"></div>
+      <div style="margin-top:16px">
+        <p style="font-size:12px;color:#5E696F;margin-bottom:8px">Enter the device's current SSH credentials:</p>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-row"><label>Device Username</label><input id="dev-adopt-user" placeholder="admin"></div>
+          <div class="form-row"><label>Device Password</label><input id="dev-adopt-pass" type="password"></div>
+        </div>
+        <button id="btn-dev-adopt">Adopt Selected on Target</button>
+      </div>
+    </div>
+
+    <div id="dev-status" class="hidden card">
+      <h2>Migration Status</h2>
+      <div id="dev-status-log" style="max-height:400px;overflow:auto"></div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button onclick="goToStep(5)">Continue to Device Settings →</button>
+      <button class="secondary" onclick="goToStep(5)">Skip →</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Device Settings -->
+  <div class="migrate-step hidden" id="mstep-5">
+    <div class="card">
+      <h2>Step 5: Device Settings</h2>
+      <p style="font-size:13px;color:#5E696F;margin-bottom:16px">Apply per-device config (radio settings, port profiles, channel overrides) now that devices are on the target.</p>
+      <div id="m-devdiff-progress"></div>
+      <div id="m-devdiff-results" class="hidden">
+        <div class="toggle">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="m-devhide-identical" checked style="width:16px;height:16px;accent-color:#0492eb"> Hide identical</label>
+        </div>
+        <div id="m-devdiff-content"></div>
+      </div>
+    </div>
+    <div id="m-devplan-section" class="hidden card">
+      <h2>Write Plan</h2>
+      <div id="m-devplan-preview"></div>
+      <div style="margin-top:16px"><button id="btn-m-dev-execute">Execute Plan</button></div>
+    </div>
+    <div id="m-devexec-section" class="hidden card">
+      <h2>Executing...</h2>
+      <div class="progress-bar"><div class="progress-fill" id="m-devexec-progress" style="width:0%">0%</div></div>
+      <div class="progress-label" id="m-devexec-label">Starting...</div>
+      <div id="m-devexec-log" style="max-height:300px;overflow:auto;font-size:12px;margin-top:16px"></div>
+    </div>
+    <div style="margin-top:16px"><button onclick="goToStep(6)">Finish</button></div>
+  </div>
+
+  <!-- Step 6: Done -->
+  <div class="migrate-step hidden" id="mstep-6">
+    <div class="card" style="text-align:center;padding:48px">
+      <div style="font-size:48px;margin-bottom:16px">✓</div>
+      <h2 style="margin-bottom:8px">Migration Complete</h2>
+      <p style="color:#5E696F;margin-bottom:24px">All selected settings and devices have been migrated.</p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button onclick="goToStep(1);migrateState={step:1,sourceSnapshot:null,sourceInfo:null,targetInfo:null}">Start New Migration</button>
+        <button class="secondary" onclick="goToStep(3)">Verify (Re-compare)</button>
       </div>
     </div>
   </div>
 
-  <div id="dev-source-devices" class="hidden card">
-    <h2>Source Devices (Adopted)</h2>
-    <div id="dev-source-table"></div>
-    <div style="margin-top:16px">
-      <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Source credentials</strong> (auto-fetched — override only if source device-account doesn't match devices):</p>
-      <div class="form-grid" style="margin-bottom:12px">
-        <div class="form-row"><label>Source Device Username</label><input id="dev-credentials-user" placeholder="auto-detect from source"></div>
-        <div class="form-row"><label>Source Device Password</label><input id="dev-credentials-pass" type="password" placeholder="auto-detect from source"></div>
-      </div>
-      <p style="font-size:12px;color:#5E696F;margin-bottom:8px"><strong>Target credentials</strong> (optional — if set, devices will end up with these new credentials after adoption):</p>
-      <div class="form-grid" style="margin-bottom:12px">
-        <div class="form-row"><label>New Device Username</label><input id="dev-target-creds-user" placeholder="leave empty = use source credentials"></div>
-        <div class="form-row"><label>New Device Password</label><input id="dev-target-creds-pass" type="password" placeholder="leave empty = use source credentials"></div>
-      </div>
-      <button id="btn-dev-forget" class="danger">Forget Selected &amp; Adopt on Target</button>
-    </div>
-  </div>
-
-  <div id="dev-target-devices" class="hidden card">
-    <h2>Target Pending Devices</h2>
-    <div id="dev-target-table"></div>
-    <div style="margin-top:16px">
-      <p style="font-size:12px;color:#5E696F;margin-bottom:8px">Enter the device's current SSH credentials (from the controller that previously managed it):</p>
-      <div class="form-grid" style="margin-bottom:12px">
-        <div class="form-row"><label>Device Username</label><input id="dev-adopt-user" placeholder="admin"></div>
-        <div class="form-row"><label>Device Password</label><input id="dev-adopt-pass" type="password"></div>
-      </div>
-      <button id="btn-dev-adopt">Adopt Selected on Target</button>
-    </div>
-  </div>
-
-  <div id="dev-status" class="hidden card">
-    <h2>Migration Status</h2>
-    <div id="dev-status-log" style="max-height:400px;overflow:auto"></div>
-  </div>
+  </div><!-- /guided-mode -->
 </div>
 
 <!-- Snapshots Tab -->
@@ -421,8 +489,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'snapshots') loadSnapshots();
-    if (tab.dataset.tab === 'migrate') initMigrateTab();
-    if (tab.dataset.tab === 'devices') loadProfileSelects();
+    if (tab.dataset.tab === 'migration') initMigrateTab();
   });
 });
 
@@ -481,6 +548,38 @@ async function loadProfileSelects() {
 let migrateState = { step: 1, sourceSnapshot: null, sourceInfo: null, targetInfo: null };
 let currentDiff = null;
 let selectedOps = [];
+
+let resourceMeta = {};
+const DEVICE_PARENT_PARAMS = new Set(['apMac', 'switchMac', 'gatewayMac', 'deviceMac']);
+function isDeviceResource(key) {
+  const res = resourceMeta[key];
+  if (!res || !res.parent_params) return false;
+  return res.parent_params.some(p => DEVICE_PARENT_PARAMS.has(p));
+}
+
+// Load resource metadata for classification
+fetch(API + '/api/resources').then(r => r.json()).then(d => {
+  d.forEach(r => { resourceMeta[r.key] = r; });
+}).catch(() => {});
+
+let migrationMode = 'guided';
+function setMigrationMode(mode) {
+  migrationMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+    b.style.background = b.dataset.mode === mode ? '#0492eb' : 'transparent';
+    b.style.color = b.dataset.mode === mode ? '#fff' : '#5E696F';
+  });
+  document.getElementById('guided-mode').classList.toggle('hidden', mode !== 'guided');
+  document.getElementById('custom-mode-picker').classList.toggle('hidden', mode !== 'custom');
+}
+
+function startCustomStep(step) {
+  setMigrationMode('guided');
+  if (step === 'site') goToStep(3);
+  else if (step === 'devices') goToStep(4);
+  else if (step === 'device-settings') goToStep(5);
+}
 
 function initMigrateTab() {
   loadProfileSelects();
@@ -647,7 +746,7 @@ document.getElementById('btn-m-diff').addEventListener('click', async () => {
             selectedOps = [];
             progressEl.innerHTML = '<div class="status-bar success">Comparison complete.</div>';
             document.getElementById('m-diff-results').classList.remove('hidden');
-            renderMigrateDiff();
+            renderMigrateDiff('site');
           }
           event = null;
         }
@@ -682,15 +781,23 @@ function bestName(obj) {
   return 'Unnamed';
 }
 
-function renderMigrateDiff() {
-  const hideIdentical = document.getElementById('m-hide-identical').checked;
-  const container = document.getElementById('m-diff-content');
+function renderMigrateDiff(filter, containerId, hideCheckboxId) {
+  filter = filter || null;
+  containerId = containerId || 'm-diff-content';
+  hideCheckboxId = hideCheckboxId || 'm-hide-identical';
+  const hideIdentical = document.getElementById(hideCheckboxId).checked;
+  const container = document.getElementById(containerId);
   let html = '';
 
   const sortedKeys = Object.keys(currentDiff).sort((a, b) => {
     const ad = currentDiff[a], bd = currentDiff[b];
     const score = d => (d.differs || 0) * 100 + (d.source_only || 0) * 10 + (d.target_only || 0);
     return score(bd) - score(ad);
+  }).filter(key => {
+    if (!filter) return true;
+    if (filter === 'site') return !isDeviceResource(key);
+    if (filter === 'device') return isDeviceResource(key);
+    return true;
   });
 
   for (const key of sortedKeys) {
@@ -848,7 +955,7 @@ function formatFieldVal(v) {
   return escHtml(String(v));
 }
 
-document.getElementById('m-hide-identical').addEventListener('change', renderMigrateDiff);
+document.getElementById('m-hide-identical').addEventListener('change', () => renderMigrateDiff('site'));
 
 function updateMigratePlan() {
   selectedOps = [];
@@ -885,7 +992,8 @@ document.getElementById('btn-m-execute').addEventListener('click', () => {
   if (!selectedOps.length) return;
   if (!confirm(`Execute ${selectedOps.length} operation(s)? This will write to the target controller.`)) return;
 
-  goToStep(4);
+  document.getElementById('m-plan-section').classList.add('hidden');
+  document.getElementById('m-exec-section').classList.remove('hidden');
   const targetProfile = document.getElementById('m-target-profile').value;
   const targetSite = document.getElementById('m-target-site').value;
 
@@ -937,6 +1045,9 @@ function handleExecEvent(event, d) {
     if (d.failures && d.failures.length) {
       document.getElementById('m-exec-log').innerHTML += '<hr style="border:none;border-top:1px solid #EBECED;margin:8px 0">' + d.failures.map(f => `<div style="color:#ff2954;padding:2px 0">✗ ${escHtml(f.name)}: ${escHtml(f.reason)}</div>`).join('');
     }
+    // Show navigation to next step
+    const nav = document.getElementById('m-step3-nav');
+    if (nav) { nav.classList.remove('hidden'); nav.style.display = 'flex'; }
   }
 }
 
