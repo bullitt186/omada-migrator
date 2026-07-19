@@ -314,6 +314,15 @@ tr:last-child td { border-bottom: none; }
     <div class="card">
       <h2>Step 3: Site Settings</h2>
       <p style="font-size:13px;color:#5E696F;margin-bottom:16px">Migrate site-wide settings (networks, SSIDs, firewall rules) before moving devices.</p>
+      <div class="card" style="background:#F8F9FB;margin-bottom:16px;padding:16px">
+        <h3 style="margin-bottom:8px">Cutover Mode</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label style="display:flex;align-items:start;gap:8px;cursor:pointer"><input type="radio" name="cutover-mode" value="create_disabled" checked style="margin-top:3px;width:auto"> <span><strong>Create disabled</strong> (recommended)<br><span style="font-size:12px;color:#5E696F">DHCP on target will be inactive. Source keeps running. You activate when ready.</span></span></label>
+          <label style="display:flex;align-items:start;gap:8px;cursor:pointer"><input type="radio" name="cutover-mode" value="active" style="margin-top:3px;width:auto"> <span><strong>Create active</strong><br><span style="font-size:12px;color:#5E696F">Services go live immediately on target. Risk of dual-active DHCP conflict.</span></span></label>
+          <label style="display:flex;align-items:start;gap:8px;cursor:pointer"><input type="radio" name="cutover-mode" value="disable_source" style="margin-top:3px;width:auto"> <span><strong>Disable on source</strong><br><span style="font-size:12px;color:#5E696F">After target write succeeds, disable DHCP on source. Riskier if write fails mid-way.</span></span></label>
+        </div>
+        <div class="status-bar warning" style="margin-top:12px;font-size:12px">VPN tunnels, NAT rules, and static routes have no enable/disable toggle. They will be active on both controllers — disable them on source manually when ready.</div>
+      </div>
       <div id="m-diff-progress"></div>
       <div id="m-diff-results" class="hidden">
         <div class="toggle">
@@ -443,6 +452,21 @@ tr:last-child td { border-bottom: none; }
       <div style="font-size:48px;margin-bottom:16px">✓</div>
       <h2 style="margin-bottom:8px">Migration Complete</h2>
       <p style="color:#5E696F;margin-bottom:24px">All selected settings and devices have been migrated.</p>
+      <div id="m-activate-section" class="hidden" style="text-align:left;margin-bottom:24px">
+        <div class="card" style="background:#FFF8E1;border-color:#ff9500">
+          <h3>DHCP Activation Required</h3>
+          <p style="font-size:13px;color:#5E696F;margin:8px 0">DHCP was created disabled on the target. When you're ready for cutover:</p>
+          <ol style="font-size:13px;color:#5E696F;margin:8px 0 16px 20px">
+            <li>Click "Activate" — this disables DHCP on source and enables on target</li>
+            <li>Clients will get addresses from the target controller</li>
+          </ol>
+          <div style="display:flex;gap:8px">
+            <button onclick="activateDhcpCutover()">Activate DHCP on Target</button>
+            <button class="secondary" onclick="rollbackDhcp()">Re-enable on Source (rollback)</button>
+          </div>
+          <div id="m-activate-log" style="margin-top:12px;font-size:12px"></div>
+        </div>
+      </div>
       <div style="display:flex;gap:12px;justify-content:center">
         <button onclick="goToStep(1);migrateState={step:1,sourceSnapshot:null,sourceInfo:null,targetInfo:null}">Start New Migration</button>
         <button class="secondary" onclick="goToStep(3)">Verify (Re-compare)</button>
@@ -599,6 +623,44 @@ function goToStep(n) {
   document.querySelectorAll('#migrate-stepper .step-connector').forEach((conn, i) => {
     conn.classList.toggle('done', i + 1 < n);
   });
+  // Step 6: show activation section if DHCP was created disabled
+  if (n === 6 && migrateState.cutoverMode === 'create_disabled') {
+    document.getElementById('m-activate-section').classList.remove('hidden');
+  }
+}
+
+async function activateDhcpCutover() {
+  const logEl = document.getElementById('m-activate-log');
+  const targetProfile = document.getElementById('m-target-profile').value;
+  const targetSite = document.getElementById('m-target-site').value;
+  const sourceProfile = document.getElementById('m-source-profile')?.value || migrateState.sourceInfo?.name;
+  logEl.innerHTML = '<div style="color:#5E696F">Disabling DHCP on source...</div>';
+  // Disable on source (if we have source profile connection)
+  if (sourceProfile) {
+    try {
+      const r = await fetch(API + '/api/dhcp-toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({profile_name: sourceProfile, site_id: migrateState.sourceSiteId || '', enable: false})});
+      const d = await r.json();
+      logEl.innerHTML += `<div style="color:#00A870">Source DHCP disabled (${(d.toggled||[]).length} networks)</div>`;
+    } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">Failed to disable source: ${e.message}</div>`; }
+  }
+  logEl.innerHTML += '<div style="color:#5E696F">Enabling DHCP on target...</div>';
+  try {
+    const r = await fetch(API + '/api/dhcp-toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, enable: true})});
+    const d = await r.json();
+    logEl.innerHTML += `<div style="color:#00A870">Target DHCP enabled (${(d.toggled||[]).length} networks). Cutover complete!</div>`;
+  } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">Failed to enable target: ${e.message}</div>`; }
+}
+
+async function rollbackDhcp() {
+  const logEl = document.getElementById('m-activate-log');
+  const sourceProfile = document.getElementById('m-source-profile')?.value;
+  if (!sourceProfile) { logEl.innerHTML = '<div style="color:#ff2954">No source profile available for rollback</div>'; return; }
+  logEl.innerHTML = '<div style="color:#5E696F">Re-enabling DHCP on source...</div>';
+  try {
+    const r = await fetch(API + '/api/dhcp-toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({profile_name: sourceProfile, site_id: migrateState.sourceSiteId || '', enable: true})});
+    const d = await r.json();
+    logEl.innerHTML += `<div style="color:#00A870">Source DHCP re-enabled (${(d.toggled||[]).length} networks)</div>`;
+  } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">Rollback failed: ${e.message}</div>`; }
 }
 
 // Step 1: Source
@@ -1000,7 +1062,7 @@ document.getElementById('btn-m-execute').addEventListener('click', () => {
   fetch(API + '/api/execute', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target_profile: targetProfile, target_site_id: targetSite, operations: selectedOps})
+    body: JSON.stringify({target_profile: targetProfile, target_site_id: targetSite, operations: selectedOps, cutover_mode: document.querySelector('input[name="cutover-mode"]:checked')?.value || 'active'})
   }).then(resp => {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -1048,6 +1110,8 @@ function handleExecEvent(event, d) {
     // Show navigation to next step
     const nav = document.getElementById('m-step3-nav');
     if (nav) { nav.classList.remove('hidden'); nav.style.display = 'flex'; }
+    // Track cutover mode for step 6
+    migrateState.cutoverMode = document.querySelector('input[name="cutover-mode"]:checked')?.value || 'active';
   }
 }
 

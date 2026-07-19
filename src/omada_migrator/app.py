@@ -534,6 +534,7 @@ class WriteRequest(BaseModel):
     target_profile: str
     target_site_id: str
     operations: list[dict[str, Any]]
+    cutover_mode: str = "active"  # "active" | "create_disabled" | "disable_source"
 
 
 @app.post("/api/plan")
@@ -649,6 +650,11 @@ async def execute_write_plan(req: WriteRequest):
 
             op_type = OpType(op["op_type"])
             payload = apply_write_quirks(op["resource_key"], op.get("payload", {}))
+            # Safe cutover: disable DHCP on lan-networks when creating disabled
+            if req.cutover_mode == "create_disabled" and "lan-networks" in op["resource_key"]:
+                for dhcp_key in ("dhcpSetting", "dhcpSettings"):
+                    if isinstance(payload.get(dhcp_key), dict):
+                        payload[dhcp_key] = {**payload[dhcp_key], "enable": False}
             # Stash target_id for split_writes URL construction
             if op.get("target_id"):
                 payload["_target_id"] = op["target_id"]
@@ -907,6 +913,76 @@ async def get_adopt_result(profile_name: str, site_id: str, device_mac: str):
         result = await client.request("GET", url)
         return {"status": "ok", "result": result.get("result")}
     except OmadaApiError as e:
+        raise HTTPException(500, str(e))
+
+
+# --- DHCP cutover / safe migration ---
+
+class DhcpToggleRequest(BaseModel):
+    profile_name: str
+    site_id: str
+    enable: bool
+
+
+@app.post("/api/dhcp-toggle")
+async def toggle_dhcp(req: DhcpToggleRequest):
+    """Enable or disable DHCP on all networks of a controller/site."""
+    client = await get_connection(req.profile_name)
+    url = f"{client._base_url}/openapi/v1/{client._omadac_id}/sites/{req.site_id}/lan-networks"
+    try:
+        networks = await client.get_paginated(url)
+    except OmadaApiError as e:
+        raise HTTPException(500, str(e))
+
+    toggled = []
+    for net in networks:
+        dhcp = net.get("dhcpSetting") or net.get("dhcpSettings")
+        if not dhcp or not isinstance(dhcp, dict):
+            continue
+        if dhcp.get("enable") == req.enable:
+            continue
+        # Update this network's DHCP state
+        net_id = net.get("id")
+        if not net_id:
+            continue
+        put_url = f"{client._base_url}/openapi/v1/{client._omadac_id}/sites/{req.site_id}/lan-networks/{net_id}"
+        dhcp_key = "dhcpSetting" if "dhcpSetting" in net else "dhcpSettings"
+        try:
+            await client.update(put_url, {dhcp_key: {**dhcp, "enable": req.enable}})
+            toggled.append({"id": net_id, "name": net.get("name", net_id), "enabled": req.enable})
+        except OmadaApiError:
+            toggled.append({"id": net_id, "name": net.get("name", net_id), "error": "failed"})
+
+    return {"status": "ok", "toggled": toggled}
+
+
+class BackupRequest(BaseModel):
+    profile_name: str
+
+
+@app.post("/api/backup")
+async def trigger_backup(req: BackupRequest):
+    """Trigger a controller backup (self-server)."""
+    client = await get_connection(req.profile_name)
+    backup_url = f"{client._base_url}/openapi/v1/{client._omadac_id}/maintenance/backup/self-server"
+    try:
+        await client.request("POST", backup_url, json={"retainUser": True})
+        # Wait for file to appear
+        import asyncio as _aio3
+        files_url = f"{client._base_url}/openapi/v1/{client._omadac_id}/maintenance/backup/files"
+        for _ in range(6):
+            await _aio3.sleep(5)
+            try:
+                resp = await client.request("GET", files_url)
+                files = resp.get("result", {}).get("fileList", [])
+                if files:
+                    return {"status": "ok", "filename": files[0]["fileName"]}
+            except Exception:
+                pass
+        return {"status": "ok", "filename": None}
+    except OmadaApiError as e:
+        if e.is_unsupported:
+            return {"status": "unsupported", "error": str(e)}
         raise HTTPException(500, str(e))
 
 
