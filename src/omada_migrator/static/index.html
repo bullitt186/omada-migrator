@@ -324,8 +324,12 @@ tr:last-child td { border-bottom: none; }
       </div>
       <div id="m-diff-progress"></div>
       <div id="m-diff-results" class="hidden">
-        <div class="toggle">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="m-hide-identical" checked style="width:16px;height:16px;accent-color:#0492eb"> Hide identical</label>
+          <span style="color:#EBECED">|</span>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#ff9500"><input type="checkbox" id="m-select-all-differs" style="width:15px;height:15px;accent-color:#ff9500" onchange="toggleAllByType('differs', this.checked)"> All changed</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#00A870"><input type="checkbox" id="m-select-all-source" style="width:15px;height:15px;accent-color:#00A870" onchange="toggleAllByType('source-only', this.checked)"> All new</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#ff2954"><input type="checkbox" id="m-select-all-target" style="width:15px;height:15px;accent-color:#ff2954" onchange="toggleAllByType('target-only', this.checked)"> All target-only</label>
         </div>
         <div id="m-diff-content"></div>
       </div>
@@ -937,12 +941,26 @@ function renderMigrateDiff(filter, containerId, hideCheckboxId) {
 
     const startExpanded = hasDiffs;
 
+    // Per-section select-all checkboxes
+    const hasDiffers = (data.differs || 0) > 0;
+    const hasSourceOnly = (data.source_only || 0) > 0;
+    const hasTargetOnly = (data.target_only || 0) > 0;
+    let sectionChecks = '';
+    if (hasDiffers || hasSourceOnly || hasTargetOnly) {
+      sectionChecks = '<div style="display:flex;gap:8px;padding:4px 20px 8px 50px;border-bottom:1px solid #EBECED">';
+      if (hasDiffers) sectionChecks += `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#ff9500"><input type="checkbox" style="width:13px;height:13px;accent-color:#ff9500" onchange="toggleSectionByType('${groupId}','differs',this.checked)"> changed</label>`;
+      if (hasSourceOnly) sectionChecks += `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#00A870"><input type="checkbox" style="width:13px;height:13px;accent-color:#00A870" onchange="toggleSectionByType('${groupId}','source-only',this.checked)"> new</label>`;
+      if (hasTargetOnly) sectionChecks += `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#ff2954"><input type="checkbox" style="width:13px;height:13px;accent-color:#ff2954" onchange="toggleSectionByType('${groupId}','target-only',this.checked)"> target-only</label>`;
+      sectionChecks += '</div>';
+    }
+
     html += `<div class="resource-group">
       <div class="resource-header" onclick="toggleResourceGroup('${groupId}')">
         <span class="chevron${startExpanded ? ' expanded' : ''}" id="${groupId}-chevron">▶</span>
         <span class="group-name">${displayName}</span>
         <span class="group-counts">${countBadges}</span>
       </div>
+      ${startExpanded ? sectionChecks : ''}
       <div class="resource-body${startExpanded ? ' expanded' : ''}" id="${groupId}">${items.join('')}</div>
     </div>`;
   }
@@ -962,6 +980,22 @@ function toggleResourceGroup(id) {
     body.classList.toggle('expanded');
     chevron.classList.toggle('expanded');
   }
+}
+
+function toggleAllByType(type, checked) {
+  document.querySelectorAll('#m-diff-content .diff-item.' + type + ' input[type=checkbox]').forEach(function(cb) {
+    cb.checked = checked;
+  });
+  updateMigratePlan();
+}
+
+function toggleSectionByType(groupId, type, checked) {
+  var body = document.getElementById(groupId);
+  if (!body) return;
+  body.querySelectorAll('.diff-item.' + type + ' input[type=checkbox]').forEach(function(cb) {
+    cb.checked = checked;
+  });
+  updateMigratePlan();
 }
 
 function toggleItemDetail(id) {
