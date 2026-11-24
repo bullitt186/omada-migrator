@@ -1,0 +1,3 @@
+# repo-kit settings for PR hygiene. See https://github.com/bullitt186/repo-kit
+exempt_paths:          # not code: the vendored Omada OpenAPI spec
+  - src/omada_migrator/openapi_spec.json
