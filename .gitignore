@@ -6,3 +6,5 @@ config.json
 snapshots/
 .codegraph/
 .playwright-cli/
+.claude/settings.local.json
+.claude/worktrees/
