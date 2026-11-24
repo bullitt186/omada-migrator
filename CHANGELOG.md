@@ -14,3 +14,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
   resources, ADR-0003 retry-until-stable writes, ADR-0004 TLS verification), and `docs/SCOPE.md` with purpose and non-goals. The new
   `PR hygiene` check fails when code changes come without a test or changelog change, or when
   an ADR or a Markdown link is broken.
+- repo-kit v2: `AGENTS.md` names a fast check (run before every commit and by the Claude Code
+  stop hook in `.claude/settings.json`), the full check and the state of mutation testing;
+  `CONTRIBUTING.md` adds how an idea becomes an accepted issue and the labels `accepted` and
+  `out-of-scope`. New `Security` workflow (secret scan, dependency review) and weekly Dependabot
+  updates for pip and GitHub Actions.
