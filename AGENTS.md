@@ -89,6 +89,8 @@ issues and ADRs are not up for silent change.
 
 ### Purpose
 
+Scope and non-goals: [docs/SCOPE.md](docs/SCOPE.md)
+
 omada-migrator is a local, single-user web tool that migrates site-scoped
 configuration from one TP-Link Omada controller (local, cloud or Fusion gateway)
 to another through the Omada OpenAPI: read the source, diff it against the
