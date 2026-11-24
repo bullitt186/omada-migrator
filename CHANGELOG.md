@@ -1,0 +1,16 @@
+# Changelog
+
+All notable changes are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [SemVer](https://semver.org/).
+
+## [Unreleased]
+
+### Contributors
+
+- One setup for all coding agents and people ([repo-kit](https://github.com/bullitt186/repo-kit)):
+  `AGENTS.md` is the single instruction file (`CLAUDE.md` imports it), `CONTRIBUTING.md` holds
+  the Definition of Done that every pull request is reviewed against, a pull request template,
+  issue forms, and architecture decision records in `docs/adr/` (ADR-0002 schema-driven
+  resources, ADR-0003 retry-until-stable writes, ADR-0004 TLS verification). The new
+  `PR hygiene` check fails when code changes come without a test or changelog change, or when
+  an ADR or a Markdown link is broken.

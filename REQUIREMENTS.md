@@ -2,7 +2,7 @@
 
 Status: agreed, pre-implementation
 Author basis: interview with project owner, 2026-07-17; technical analysis of
-`/Users/bullitt/Documents/Repositories/ha-omada-open-api`
+[ha-omada-open-api](https://github.com/bullitt186/ha-omada-open-api)
 
 ## For future Claude
 
@@ -38,7 +38,7 @@ firmware, live client state, or MSP/controller-wide (non-site) settings.
 
 ### 2.1 `ha-omada-open-api` — what it establishes as fact
 
-Source: `/Users/bullitt/Documents/Repositories/ha-omada-open-api`,
+Source: [ha-omada-open-api](https://github.com/bullitt186/ha-omada-open-api),
 `custom_components/omada_open_api/{auth.py,api.py,config_flow.py,const.py}`.
 
 **Two authentication strategies, one ABC (`OmadaAuthStrategy`):**
