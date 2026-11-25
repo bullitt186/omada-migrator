@@ -32,6 +32,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# The web UI and the bundled OpenAPI spec are served from the installed package (#12).
+omada_migrator = ["openapi_spec.json", "static/**/*"]
+
 [tool.ruff]
 # Lint and format (repo-kit CI standard, category 2): `ruff check . && ruff format --check .`
 line-length = 100
@@ -55,25 +59,6 @@ no_implicit_reexport = true
 strict_equality = true
 extra_checks = true
 
-# Findings in the code when the type check was introduced (#4): Optional values used without a
-# None check, a list and a dict whose declared item type is narrower than what is stored, and a
-# variable reused for a WriteOp. Each is a possible bug and is tracked in a follow-up issue;
-# remove a code here when its findings are fixed, never add one.
-[[tool.mypy.overrides]]
-module = "omada_migrator.app"
-disable_error_code = ["assignment", "index", "misc", "attr-defined"]
-
-[[tool.mypy.overrides]]
-module = "omada_migrator.auth"
-disable_error_code = ["union-attr"]
-
-[[tool.mypy.overrides]]
-module = "omada_migrator.registry"
-disable_error_code = ["arg-type", "misc"]
-
-[[tool.mypy.overrides]]
-module = "omada_migrator.spec_store"
-disable_error_code = ["return-value", "dict-item"]
 
 [tool.mutmut]
 # Mutation testing (scripts/mutate.sh, weekly workflow): the package against tests/.

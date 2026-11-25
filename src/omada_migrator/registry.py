@@ -39,9 +39,8 @@ class ResourceRegistry:
     def _parse(self, spec: dict[str, Any]) -> None:
         paths = spec.get("paths", {})
         # Group paths by their base resource key
-        grouped: dict[
-            str, dict[str, list[tuple[str, str]]]
-        ] = {}  # key -> {method -> [(full_path, ...)]}
+        # key -> {"paths_info": [(method, full_path, has_id, operation)]}
+        grouped: dict[str, dict[str, list[tuple[str, str, bool, dict[str, Any]]]]] = {}
 
         for path, operations in paths.items():
             m = SITE_PREFIX_RE.match(path)

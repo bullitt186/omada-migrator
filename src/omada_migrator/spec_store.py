@@ -16,10 +16,10 @@ def _ensure_dir():
     SPEC_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def list_specs() -> list[dict[str, str]]:
+def list_specs() -> list[dict[str, str | bool]]:
     """Return available specs: [{name, path, version_info}]."""
     _ensure_dir()
-    specs = []
+    specs: list[dict[str, str | bool]] = []
 
     # Bundled spec is always available
     specs.append(
@@ -67,7 +67,7 @@ def get_spec_path(name: str | None = None) -> Path:
     return BUNDLED_SPEC
 
 
-def import_spec(source_path: str, label: str | None = None) -> dict[str, str]:
+def import_spec(source_path: str, label: str | None = None) -> dict[str, str | int]:
     """Import an OpenAPI spec from a file path. Returns metadata about the imported spec."""
     _ensure_dir()
     source = Path(source_path)

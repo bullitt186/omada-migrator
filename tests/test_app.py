@@ -116,6 +116,15 @@ class TestDeviceAPI:
         assert resp.status_code == 404
 
 
+class TestReadAPI:
+    def test_read_unknown_profile_is_404_before_streaming(self, client):
+        # The profile is looked up before the event stream starts (#12); a missing one used to
+        # fail only after the stream had started, so the client got no 404.
+        resp = client.get("/api/read", params={"profile_name": "nonexistent", "site_id": "sid"})
+        assert resp.status_code == 404
+        assert "nonexistent" in resp.json()["detail"]
+
+
 class TestUIServing:
     def test_index_page(self, client):
         resp = client.get("/")

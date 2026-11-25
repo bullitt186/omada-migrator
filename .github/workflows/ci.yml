@@ -44,5 +44,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       - run: uv build
-      - name: List the wheel
-        run: unzip -l dist/*.whl
+      - name: The wheel contains the web UI and the bundled spec
+        run: |
+          unzip -l dist/*.whl
+          unzip -l dist/*.whl | grep -q 'omada_migrator/openapi_spec.json'
+          unzip -l dist/*.whl | grep -q 'omada_migrator/static/index.html'
