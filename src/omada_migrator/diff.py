@@ -4,24 +4,46 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-IGNORED_FIELDS = frozenset({
-    # Server-assigned identifiers and timestamps
-    "id", "ssidId", "wlanId", "createTime", "modifyTime", "updateTime", "createUser",
-    "modifyUser", "siteId", "omadacId",
-    # Internal tracking fields
-    "_parents", "_parent",
-    # Controller-specific metadata (don't match across controllers)
-    "tagIds", "tagName", "site", "deviceMac", "interfaceIds",
-    # Computed/read-only state
-    "totalIpNum", "dhcpServerNum", "gatewayModel", "portList",
-    "boundDeviceNum", "existCustomDhcpOption", "existAllowInternetAccess",
-    "existLargePingThreshold", "existIcmpTimestampRequestReject",
-    "supportIcmpTimestampRequestReject",
-    # Per-object IDs in read responses (not references to other objects)
-    "groupId",
-    # Per-device hardware-specific fields
-    "ip", "ledSetting",
-})
+IGNORED_FIELDS = frozenset(
+    {
+        # Server-assigned identifiers and timestamps
+        "id",
+        "ssidId",
+        "wlanId",
+        "createTime",
+        "modifyTime",
+        "updateTime",
+        "createUser",
+        "modifyUser",
+        "siteId",
+        "omadacId",
+        # Internal tracking fields
+        "_parents",
+        "_parent",
+        # Controller-specific metadata (don't match across controllers)
+        "tagIds",
+        "tagName",
+        "site",
+        "deviceMac",
+        "interfaceIds",
+        # Computed/read-only state
+        "totalIpNum",
+        "dhcpServerNum",
+        "gatewayModel",
+        "portList",
+        "boundDeviceNum",
+        "existCustomDhcpOption",
+        "existAllowInternetAccess",
+        "existLargePingThreshold",
+        "existIcmpTimestampRequestReject",
+        "supportIcmpTimestampRequestReject",
+        # Per-object IDs in read responses (not references to other objects)
+        "groupId",
+        # Per-device hardware-specific fields
+        "ip",
+        "ledSetting",
+    }
+)
 
 NATURAL_KEY_CANDIDATES = ["name", "ssid", "profileName", "ssidName", "ruleName", "policyName"]
 
@@ -88,7 +110,9 @@ def match_objects(
     return matched, source_only, target_remaining
 
 
-def diff_objects(source: dict, target: dict, ignore_fields: frozenset[str] | None = None) -> DiffResult:
+def diff_objects(
+    source: dict, target: dict, ignore_fields: frozenset[str] | None = None
+) -> DiffResult:
     """Compare two matched objects, ignoring server-assigned fields."""
     if ignore_fields is None:
         ignore_fields = IGNORED_FIELDS
@@ -129,7 +153,9 @@ def diff_resource(
             identical += 1
         else:
             differs += 1
-            diff_details.append({"source": src_obj, "target": tgt_obj, "changed_fields": result.changed_fields})
+            diff_details.append(
+                {"source": src_obj, "target": tgt_obj, "changed_fields": result.changed_fields}
+            )
 
     return {
         "identical": identical,

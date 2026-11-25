@@ -85,7 +85,11 @@ class ClientCredentialsAuth(AuthStrategy):
         resp = await self._client.post(
             url,
             params={"grant_type": "client_credentials"},
-            json={"omadacId": self._omadac_id, "client_id": self._client_id, "client_secret": self._client_secret},
+            json={
+                "omadacId": self._omadac_id,
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+            },
         )
         if resp.status_code != 200:
             raise AuthError(f"Auth failed: HTTP {resp.status_code}")
@@ -116,7 +120,9 @@ class WebSessionAuth(AuthStrategy):
 
     async def authenticate(self) -> None:
         url = f"{self._base_url}/{self._omadac_id}/api/v2/login"
-        resp = await self._client.post(url, json={"username": self._username, "password": self._password})
+        resp = await self._client.post(
+            url, json={"username": self._username, "password": self._password}
+        )
         data = resp.json()
         if data.get("errorCode") != 0:
             raise AuthError(f"Login failed: {data.get('msg')}")

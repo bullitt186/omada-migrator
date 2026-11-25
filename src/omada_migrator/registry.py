@@ -2,7 +2,7 @@
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +39,9 @@ class ResourceRegistry:
     def _parse(self, spec: dict[str, Any]) -> None:
         paths = spec.get("paths", {})
         # Group paths by their base resource key
-        grouped: dict[str, dict[str, list[tuple[str, str]]]] = {}  # key -> {method -> [(full_path, ...)]}
+        grouped: dict[
+            str, dict[str, list[tuple[str, str]]]
+        ] = {}  # key -> {method -> [(full_path, ...)]}
 
         for path, operations in paths.items():
             m = SITE_PREFIX_RE.match(path)
@@ -62,7 +64,9 @@ class ResourceRegistry:
 
             for method in ("get", "post", "put", "patch", "delete"):
                 if method in operations:
-                    grouped[base_key]["paths_info"].append((method, path, has_id, operations[method]))
+                    grouped[base_key]["paths_info"].append(
+                        (method, path, has_id, operations[method])
+                    )
 
         for key, info in grouped.items():
             methods_on_base = set()
@@ -93,7 +97,7 @@ class ResourceRegistry:
                 if method in ("post", "put", "patch") and not entry.schema_ref:
                     rb = op_data.get("requestBody", {})
                     content = rb.get("content", {})
-                    for ct, schema_info in content.items():
+                    for _ct, schema_info in content.items():
                         ref = schema_info.get("schema", {}).get("$ref")
                         if ref:
                             entry.schema_ref = ref
@@ -120,13 +124,15 @@ class ResourceRegistry:
 
         # Fix misclassified singletons that are actually paginated lists
         from .quirks import FORCE_LIST_RESOURCES
+
         for key in FORCE_LIST_RESOURCES:
             if key in self._entries:
                 self._entries[key].is_list = True
 
         # Prune: keep only entries that have both read AND write
         self._entries = {
-            k: e for k, e in self._entries.items()
+            k: e
+            for k, e in self._entries.items()
             if (e.list_path or e.get_path) and (e.create_path or e.update_path or e.delete_path)
         }
 
@@ -139,11 +145,13 @@ class ResourceRegistry:
         e.g. GET time-range-profiles + PUT time-range-profile/{id}
         """
         # Collect write-only entries (have write but no read)
-        write_only = {k: e for k, e in self._entries.items()
-                      if (e.update_path or e.delete_path) and not e.list_path and not e.get_path}
+        write_only = {
+            k: e
+            for k, e in self._entries.items()
+            if (e.update_path or e.delete_path) and not e.list_path and not e.get_path
+        }
         # Collect entries that have a read
-        read_entries = {k: e for k, e in self._entries.items()
-                       if (e.list_path or e.get_path)}
+        read_entries = {k: e for k, e in self._entries.items() if (e.list_path or e.get_path)}
 
         for wk, we in list(write_only.items()):
             if wk not in self._entries:
@@ -154,9 +162,9 @@ class ResourceRegistry:
             prefix = parts[0] + "/" if len(parts) > 1 else ""
 
             candidates = [
-                prefix + last + "s",       # profile → profiles
-                prefix + last + "es",      # match → matches
-                wk + "s",                  # full key + s
+                prefix + last + "s",  # profile → profiles
+                prefix + last + "es",  # match → matches
+                wk + "s",  # full key + s
             ]
             # Also handle "foo-bar" where plural is "foo-bars"
             if "-" in last:
@@ -257,32 +265,85 @@ class ResourceRegistry:
                 ssid_entry.update_path = f"{ssid_base}/update-basic-config"
             ssid_entry.split_writes = {
                 f"{ssid_base}/update-basic-config": [
-                    "name", "band", "autoWanAccess", "guestNetEnable", "security", "oweEnable",
-                    "broadcast", "vlanEnable", "vlanId", "vlanSetting", "pskSetting", "entSetting",
-                    "ppskSetting", "mloEnable", "pmfMode", "enable11r", "hidePwd", "greEnable",
+                    "name",
+                    "band",
+                    "autoWanAccess",
+                    "guestNetEnable",
+                    "security",
+                    "oweEnable",
+                    "broadcast",
+                    "vlanEnable",
+                    "vlanId",
+                    "vlanSetting",
+                    "pskSetting",
+                    "entSetting",
+                    "ppskSetting",
+                    "mloEnable",
+                    "pmfMode",
+                    "enable11r",
+                    "hidePwd",
+                    "greEnable",
                     "prohibitWifiShare",
                 ],
                 f"{ssid_base}/update-rate-limit": ["clientRateLimit", "ssidRateLimit"],
-                f"{ssid_base}/update-mac-filter": ["macFilterEnable", "policy", "macFilterId", "ouiProfileIdList"],
+                f"{ssid_base}/update-mac-filter": [
+                    "macFilterEnable",
+                    "policy",
+                    "macFilterId",
+                    "ouiProfileIdList",
+                ],
                 f"{ssid_base}/update-wlan-schedule": ["wlanScheduleEnable", "action", "scheduleId"],
                 f"{ssid_base}/update-rate-control": [
-                    "rate2gCtrlEnable", "lowerDensity2g", "higherDensity2g", "cckRatesDisable",
-                    "rate5gCtrlEnable", "lowerDensity5g", "higherDensity5g", "rate6gCtrlEnable",
-                    "lowerDensity6g", "higherDensity6g", "sendBeacons2g", "sendBeacons5g",
-                    "clientRatesRequire2g", "clientRatesRequire5g", "clientRatesRequire6g",
-                    "manageRateControl2g", "manageRateControl2gEnable",
-                    "manageRateControl5g", "manageRateControl5gEnable",
+                    "rate2gCtrlEnable",
+                    "lowerDensity2g",
+                    "higherDensity2g",
+                    "cckRatesDisable",
+                    "rate5gCtrlEnable",
+                    "lowerDensity5g",
+                    "higherDensity5g",
+                    "rate6gCtrlEnable",
+                    "lowerDensity6g",
+                    "higherDensity6g",
+                    "sendBeacons2g",
+                    "sendBeacons5g",
+                    "clientRatesRequire2g",
+                    "clientRatesRequire5g",
+                    "clientRatesRequire6g",
+                    "manageRateControl2g",
+                    "manageRateControl2gEnable",
+                    "manageRateControl5g",
+                    "manageRateControl5gEnable",
                 ],
                 f"{ssid_base}/update-multicast-config": [
-                    "multiCastEnable", "channelUtil", "arpCastEnable", "ipv6CastEnable",
-                    "filterEnable", "filterMode", "macGroupId",
+                    "multiCastEnable",
+                    "channelUtil",
+                    "arpCastEnable",
+                    "ipv6CastEnable",
+                    "filterEnable",
+                    "filterMode",
+                    "macGroupId",
                 ],
-                f"{ssid_base}/update-dhcp-option": ["dhcpEnable", "format", "delimiter", "circuitId", "remoteId"],
+                f"{ssid_base}/update-dhcp-option": [
+                    "dhcpEnable",
+                    "format",
+                    "delimiter",
+                    "circuitId",
+                    "remoteId",
+                ],
                 f"{ssid_base}/update-hotspotv2": [
-                    "hotspotV2Enable", "networkType", "plmnId", "roamingConsortiumOi",
-                    "operatorDomain", "dgafDisable", "heSsid", "internet",
-                    "operatorFriendly", "realmList", "venueInfo",
-                    "availabilityIpv4", "availabilityIpv6",
+                    "hotspotV2Enable",
+                    "networkType",
+                    "plmnId",
+                    "roamingConsortiumOi",
+                    "operatorDomain",
+                    "dgafDisable",
+                    "heSsid",
+                    "internet",
+                    "operatorFriendly",
+                    "realmList",
+                    "venueInfo",
+                    "availabilityIpv4",
+                    "availabilityIpv6",
                 ],
             }
 
@@ -292,10 +353,21 @@ class ResourceRegistry:
             sp_base = f"{V1}/switches/{{switchMac}}/multi-ports"
             sp_entry.split_writes = {
                 f"{sp_base}/config": [
-                    "name", "tagIds", "nativeNetworkId", "nativeBridgeVlan", "networkTagsSetting",
-                    "tagNetworkIds", "tagBridgeVlanMap", "untagNetworkIds", "untagBridgeVlanMap",
-                    "voiceNetworkEnable", "voiceNetworkId", "voiceBridgeVlan",
-                    "voiceDscpEnable", "voiceDscp", "portAlertEnable",
+                    "name",
+                    "tagIds",
+                    "nativeNetworkId",
+                    "nativeBridgeVlan",
+                    "networkTagsSetting",
+                    "tagNetworkIds",
+                    "tagBridgeVlanMap",
+                    "untagNetworkIds",
+                    "untagBridgeVlanMap",
+                    "voiceNetworkEnable",
+                    "voiceNetworkId",
+                    "voiceBridgeVlan",
+                    "voiceDscpEnable",
+                    "voiceDscp",
+                    "portAlertEnable",
                 ],
                 f"{sp_base}/poe-mode": ["poeMode"],
                 f"{sp_base}/status": ["status"],

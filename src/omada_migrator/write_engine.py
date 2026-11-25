@@ -1,8 +1,9 @@
 """Write engine with ID remapping and retry-until-stable (FR-7, FR-8, FR-9)."""
 
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 # Reference field → resource type mapping (TD-4)
 # Scalar fields: value is a single ID string
@@ -79,7 +80,9 @@ class UnresolvedRefError(Exception):
         self.field_name = field_name
 
 
-def split_payload_for_writes(payload: dict[str, Any], split_writes: dict[str, list[str]]) -> list[tuple[str, dict[str, Any]]]:
+def split_payload_for_writes(
+    payload: dict[str, Any], split_writes: dict[str, list[str]]
+) -> list[tuple[str, dict[str, Any]]]:
     """Split a full object payload into per-endpoint sub-payloads.
 
     Returns list of (endpoint_path, sub_payload) for each endpoint that has
@@ -187,7 +190,12 @@ async def execute_plan(
 
         if not progress:
             for op in next_queue:
-                failures.append({"op": op, "reason": f"Unresolved reference (networkId): stuck after convergence"})
+                failures.append(
+                    {
+                        "op": op,
+                        "reason": "Unresolved reference (networkId): stuck after convergence",
+                    }
+                )
             break
 
         queue = next_queue

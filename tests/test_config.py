@@ -2,7 +2,6 @@
 
 import json
 import os
-import stat
 
 import pytest
 
@@ -52,7 +51,9 @@ class TestConfigStore:
 
     def test_update_profile(self, config_path):
         store = ConfigStore(config_path)
-        store.add_profile({"name": "C", "type": "local", "url": "https://old", "insecure_tls": False})
+        store.add_profile(
+            {"name": "C", "type": "local", "url": "https://old", "insecure_tls": False}
+        )
         store.update_profile("C", {"url": "https://new"})
         assert store.profiles[0]["url"] == "https://new"
 

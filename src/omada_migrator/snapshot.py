@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +13,11 @@ def save_snapshot(data: dict[str, Any], directory: Path | str) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
 
     data = dict(data)
-    data["captured_at"] = datetime.now(timezone.utc).isoformat()
+    data["captured_at"] = datetime.now(UTC).isoformat()
 
     site_name = _sanitize(data["site"]["name"])
     ctrl_name = _sanitize(data["controller"]["name"])
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"{site_name}_{ctrl_name}_{ts}.json"
 
     path = directory / filename

@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from omada_migrator.registry import ResourceRegistry
 
 FIXTURE = Path(__file__).parent / "fixtures" / "openapi_mini.json"

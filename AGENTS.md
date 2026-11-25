@@ -164,14 +164,16 @@ design TD-*, rationale in section 5, verification plan in section 7).
 
 | Task | Command |
 |---|---|
-| Install / set up | Python 3.11+; `pip install -e '.[dev]'`, or use [uv](https://docs.astral.sh/uv/) as below |
-| Fast check (before every commit, also the stop hook) | `uv run --no-project --with-editable '.[dev]' pytest -q` (or `pytest -q` in an environment with the `dev` extra) |
-| Full check (before every pull request) | same as the fast check |
-| Mutation testing of changed code | not set up (#4) |
+| Install / set up | Python 3.11+ and [uv](https://docs.astral.sh/uv/): `uv sync --locked --extra dev` installs the versions of `uv.lock` |
+| Fast check (before every commit, also the stop hook) | `uv run --locked --extra dev ruff check . && uv run --locked --extra dev ruff format --check . && uv run --locked --extra dev mypy && uv run --locked --extra dev pytest -q` |
+| Full check (before every pull request) | the fast check and `uv build`; CI (`ci.yml`) runs the tests on Python 3.11 and 3.14 |
+| Mutation testing of changed code | `scripts/mutate.sh` (mutmut on the modules changed against `origin/main`; `--results` lists survivors; weekly in `mutation.yml`) |
 | Run the tool | `python -m omada_migrator` (serves on `127.0.0.1:8888`) |
 
-There is no CI for the tests yet (#1), and no linter, formatter or type checker (#4); run the
-fast check locally before every commit.
+CI (`ci.yml`) runs the tests, Ruff, mypy and the package build on every pull request and on
+`main`. Dependencies are pinned in `uv.lock` (Dependabot `uv` updates it); after changing
+`pyproject.toml`, run `uv lock`. mypy settings and the list of findings still to fix are in
+`pyproject.toml` (`[tool.mypy]`).
 
 ### Rules specific to this repository
 

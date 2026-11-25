@@ -47,11 +47,13 @@ class SchemaMeta:
 
                     # Extract field descriptions from request body schema
                     if method in ("post", "put", "patch"):
-                        ref = (op.get("requestBody", {})
-                               .get("content", {})
-                               .get("application/json", {})
-                               .get("schema", {})
-                               .get("$ref", ""))
+                        ref = (
+                            op.get("requestBody", {})
+                            .get("content", {})
+                            .get("application/json", {})
+                            .get("schema", {})
+                            .get("$ref", "")
+                        )
                         if ref and base_key not in field_descs:
                             schema_name = ref.split("/")[-1]
                             schema = schemas.get(schema_name, {})
@@ -68,10 +70,12 @@ class SchemaMeta:
             get_op = operations.get("get")
             if get_op and isinstance(get_op, dict) and base_key not in field_descs:
                 r200 = get_op.get("responses", {}).get("200", {})
-                ref = (r200.get("content", {})
-                       .get("application/json", {})
-                       .get("schema", {})
-                       .get("$ref", ""))
+                ref = (
+                    r200.get("content", {})
+                    .get("application/json", {})
+                    .get("schema", {})
+                    .get("$ref", "")
+                )
                 if ref:
                     schema_name = ref.split("/")[-1]
                     # Response wrappers often have a "result" -> "data" -> items ref
