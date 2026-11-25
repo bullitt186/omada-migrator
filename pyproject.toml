@@ -16,7 +16,7 @@ dev = [
     "pytest-httpx>=0.30",
     "respx>=0.20",
     # Checks of AGENTS.md "Commands" (exact versions; uv.lock pins the rest)
-    "ruff==0.17.4",
+    "ruff==0.17.5",
     "mypy==2.4.1",
     "mutmut==3.8.1",
 ]
