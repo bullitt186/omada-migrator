@@ -7,6 +7,7 @@ import pytest
 import respx
 
 from omada_migrator.auth import (
+    AuthError,
     ClientCredentialsAuth,
     WebSessionAuth,
 )
@@ -274,3 +275,23 @@ class TestOmadacIdDiscovery:
             result = await discover_omadac_id(client, base_url)
 
         assert result == "discovered_id_789"
+
+
+class TestClientRequired:
+    """Authenticating before set_client() is a usage error, reported as AuthError (#12)."""
+
+    @pytest.mark.asyncio
+    async def test_client_credentials_without_client(self, base_url, omadac_id):
+        auth = ClientCredentialsAuth(
+            base_url=base_url, omadac_id=omadac_id, client_id="cid", client_secret="secret"
+        )
+        with pytest.raises(AuthError, match="set_client"):
+            await auth.authenticate()
+        with pytest.raises(AuthError, match="set_client"):
+            await auth.handle_auth_failure()
+
+    @pytest.mark.asyncio
+    async def test_web_session_without_client(self, base_url, omadac_id):
+        auth = WebSessionAuth(base_url=base_url, omadac_id=omadac_id, username="u", password="p")
+        with pytest.raises(AuthError, match="set_client"):
+            await auth.authenticate()

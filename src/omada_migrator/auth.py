@@ -29,6 +29,13 @@ class AuthStrategy(ABC):
     def set_client(self, client: httpx.AsyncClient) -> None: ...
 
 
+def _require(client: httpx.AsyncClient | None) -> httpx.AsyncClient:
+    """The HTTP client given by set_client(); authenticating without one is a usage error."""
+    if client is None:
+        raise AuthError("no HTTP client: call set_client() before authenticating")
+    return client
+
+
 class ClientCredentialsAuth(AuthStrategy):
     """OAuth2 client_credentials for classic local/cloud controllers."""
 
@@ -67,7 +74,7 @@ class ClientCredentialsAuth(AuthStrategy):
             "client_secret": self._client_secret,
             "refresh_token": self.refresh_token,
         }
-        resp = await self._client.post(url, params=params)
+        resp = await _require(self._client).post(url, params=params)
         if resp.status_code == 401:
             await self._get_fresh_tokens()
             return
@@ -82,7 +89,7 @@ class ClientCredentialsAuth(AuthStrategy):
 
     async def _get_fresh_tokens(self) -> None:
         url = f"{self._base_url}/openapi/authorize/token"
-        resp = await self._client.post(
+        resp = await _require(self._client).post(
             url,
             params={"grant_type": "client_credentials"},
             json={
@@ -120,7 +127,7 @@ class WebSessionAuth(AuthStrategy):
 
     async def authenticate(self) -> None:
         url = f"{self._base_url}/{self._omadac_id}/api/v2/login"
-        resp = await self._client.post(
+        resp = await _require(self._client).post(
             url, json={"username": self._username, "password": self._password}
         )
         data = resp.json()

@@ -308,6 +308,9 @@ def _sse_event(event: str, data: Any) -> str:
 @app.get("/api/read")
 async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
     """Read all resources via SSE for progress streaming."""
+    profile = config_store.get_profile(profile_name)
+    if profile is None:
+        raise HTTPException(404, f"Profile '{profile_name}' not found")
 
     async def generate() -> AsyncGenerator[str, None]:
         client = await get_connection(profile_name)
@@ -415,8 +418,8 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                 if entry.is_list:
                     objects = await client.get_paginated(full_url, extra_params=extra_params)
                 else:
-                    obj = await client.get_singleton(full_url, extra_params=extra_params)
-                    objects = [obj] if obj else []
+                    singleton = await client.get_singleton(full_url, extra_params=extra_params)
+                    objects = [singleton] if singleton else []
 
                 resources[entry.key] = {"status": "ok", "objects": objects}
                 yield _sse_event(
@@ -461,7 +464,6 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                 except (OmadaApiError, Exception):
                     pass
 
-        profile = config_store.get_profile(profile_name)
         snapshot_data = {
             "controller": {"name": profile["name"], "type": profile["type"], "url": profile["url"]},
             "site": {"site_id": site_id, "name": site_name or site_id},
@@ -611,8 +613,8 @@ async def compute_diff(req: DiffRequest):
                             full_url, extra_params=extra
                         )
                     else:
-                        obj = await target_client.get_singleton(full_url, extra_params=extra)
-                        target_objects = [obj] if obj else []
+                        singleton = await target_client.get_singleton(full_url, extra_params=extra)
+                        target_objects = [singleton] if singleton else []
 
                 diff = diff_resource(src_data["objects"], target_objects)
                 results[key] = {"status": "ok", **diff}
@@ -929,14 +931,13 @@ async def execute_write_plan(req: WriteRequest):
                                     ep_url = ep_url.replace(
                                         "{switchMac}", write_op.payload.get("switchMac", "")
                                     )
-                                ep_url = _PATH_PARAM_RE.sub(
-                                    lambda m, target_id=target_id: (
-                                        target_id
-                                        if m.group(1) not in {"omadacId", "siteId"}
-                                        else m.group(0)
-                                    ),
-                                    ep_url,
-                                )
+
+                                def _fill_id(m: _re.Match[str], target_id: str = target_id) -> str:
+                                    if m.group(1) in {"omadacId", "siteId"}:
+                                        return m.group(0)
+                                    return target_id
+
+                                ep_url = _PATH_PARAM_RE.sub(_fill_id, ep_url)
                                 full_ep = f"{target_client._base_url}{ep_url}"
                                 try:
                                     await target_client.patch(full_ep, sub_payload)
@@ -1001,9 +1002,12 @@ async def execute_write_plan(req: WriteRequest):
                 await _aio2.sleep(0.2)
 
             if not progress:
-                for op in next_queue:
+                for stuck_op in next_queue:
                     failures.append(
-                        {"name": op.object_name, "reason": "Unresolved reference after convergence"}
+                        {
+                            "name": stuck_op.object_name,
+                            "reason": "Unresolved reference after convergence",
+                        }
                     )
                 break
             queue = next_queue

@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Fixed
+
+- An installed package (`pip install .` or the wheel) serves the web UI and has the bundled
+  OpenAPI spec; only an editable install had them (#12).
+- Reading a site with an unknown profile answers 404 before the event stream starts instead of
+  breaking the stream.
+- Authenticating before an HTTP client is set raises a clear `AuthError` instead of an
+  `AttributeError` (#12).
+
+### Contributors
+
+- mypy checks every module without disabled error codes: the 14 findings from the introduction of
+  the type check are fixed (#12).
+
 ### Contributors
 
 - CI runs the tests (Python 3.11 and 3.14), Ruff lint and format, mypy and the package build on
