@@ -22,24 +22,28 @@ def list_specs() -> list[dict[str, str]]:
     specs = []
 
     # Bundled spec is always available
-    specs.append({
-        "name": "bundled",
-        "path": str(BUNDLED_SPEC),
-        "label": "Bundled (shipped with tool)",
-        "is_bundled": True,
-    })
+    specs.append(
+        {
+            "name": "bundled",
+            "path": str(BUNDLED_SPEC),
+            "label": "Bundled (shipped with tool)",
+            "is_bundled": True,
+        }
+    )
 
     # User-provided specs (exclude .meta.json sidecars)
     for f in sorted(SPEC_DIR.glob("*.json")):
         if f.stem.endswith(".meta"):
             continue
         meta = _read_spec_meta(f)
-        specs.append({
-            "name": f.stem,
-            "path": str(f),
-            "label": meta.get("label", f.stem),
-            "is_bundled": False,
-        })
+        specs.append(
+            {
+                "name": f.stem,
+                "path": str(f),
+                "label": meta.get("label", f.stem),
+                "is_bundled": False,
+            }
+        )
 
     return specs
 
@@ -47,7 +51,11 @@ def list_specs() -> list[dict[str, str]]:
 def get_spec_path(name: str | None = None) -> Path:
     """Get path to spec by name. None = best available (latest user-provided, or bundled)."""
     if name is None:
-        user_specs = sorted(f for f in SPEC_DIR.glob("*.json") if not f.stem.endswith(".meta")) if SPEC_DIR.exists() else []
+        user_specs = (
+            sorted(f for f in SPEC_DIR.glob("*.json") if not f.stem.endswith(".meta"))
+            if SPEC_DIR.exists()
+            else []
+        )
         if user_specs:
             return user_specs[-1]
         return BUNDLED_SPEC
@@ -82,7 +90,10 @@ def import_spec(source_path: str, label: str | None = None) -> dict[str, str]:
 
     # Write spec + sidecar meta
     dest.write_text(json.dumps(data))
-    meta = {"label": label or f"Omada API {version} ({path_count} paths)", "imported_from": str(source)}
+    meta = {
+        "label": label or f"Omada API {version} ({path_count} paths)",
+        "imported_from": str(source),
+    }
     (SPEC_DIR / f"{name}.meta.json").write_text(json.dumps(meta))
 
     return {"name": name, "path": str(dest), "label": meta["label"], "paths": path_count}

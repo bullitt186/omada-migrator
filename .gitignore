@@ -8,3 +8,4 @@ snapshots/
 .playwright-cli/
 .claude/settings.local.json
 .claude/worktrees/
+mutants/

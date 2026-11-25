@@ -1,8 +1,8 @@
 """Integration tests for FastAPI app (FR-1, FR-12)."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -12,16 +12,19 @@ def client(tmp_path):
     config_path = tmp_path / "config.json"
     spec_path = tmp_path / "spec.json"
     # Write minimal spec
-    import json
     from pathlib import Path
+
     fixture = Path(__file__).parent / "fixtures" / "openapi_mini.json"
     spec_path.write_text(fixture.read_text())
 
-    with patch("omada_migrator.app.CONFIG_PATH", config_path), \
-         patch("omada_migrator.app._spec_path", return_value=spec_path), \
-         patch("omada_migrator.app.SNAPSHOT_DIR", tmp_path / "snapshots"):
+    with (
+        patch("omada_migrator.app.CONFIG_PATH", config_path),
+        patch("omada_migrator.app._spec_path", return_value=spec_path),
+        patch("omada_migrator.app.SNAPSHOT_DIR", tmp_path / "snapshots"),
+    ):
         # Re-initialize config store with patched path
         from omada_migrator.app import app, config_store
+
         config_store._path = config_path
         config_store.profiles = []
         yield TestClient(app)
@@ -34,15 +37,18 @@ class TestProfileAPI:
         assert resp.json() == []
 
     def test_create_and_list(self, client):
-        resp = client.post("/api/profiles", json={
-            "name": "Test",
-            "type": "local",
-            "url": "https://192.168.1.1:8043",
-            "insecure_tls": True,
-            "omadac_id": "oid",
-            "client_id": "cid",
-            "client_secret": "secret",
-        })
+        resp = client.post(
+            "/api/profiles",
+            json={
+                "name": "Test",
+                "type": "local",
+                "url": "https://192.168.1.1:8043",
+                "insecure_tls": True,
+                "omadac_id": "oid",
+                "client_id": "cid",
+                "client_secret": "secret",
+            },
+        )
         assert resp.status_code == 200
 
         resp = client.get("/api/profiles")
@@ -53,9 +59,14 @@ class TestProfileAPI:
         assert "client_secret" not in profiles[0]
 
     def test_delete(self, client):
-        client.post("/api/profiles", json={
-            "name": "ToDelete", "type": "local", "url": "https://x",
-        })
+        client.post(
+            "/api/profiles",
+            json={
+                "name": "ToDelete",
+                "type": "local",
+                "url": "https://x",
+            },
+        )
         resp = client.delete("/api/profiles/ToDelete")
         assert resp.status_code == 200
         assert client.get("/api/profiles").json() == []
@@ -83,19 +94,25 @@ class TestDeviceAPI:
         assert resp.status_code == 404
 
     def test_forget_no_profile(self, client):
-        resp = client.post("/api/devices/forget", json={
-            "profile_name": "nonexistent",
-            "site_id": "sid",
-            "device_mac": "AA-BB-CC-DD-EE-FF",
-        })
+        resp = client.post(
+            "/api/devices/forget",
+            json={
+                "profile_name": "nonexistent",
+                "site_id": "sid",
+                "device_mac": "AA-BB-CC-DD-EE-FF",
+            },
+        )
         assert resp.status_code == 404
 
     def test_adopt_no_profile(self, client):
-        resp = client.post("/api/devices/adopt", json={
-            "profile_name": "nonexistent",
-            "site_id": "sid",
-            "device_macs": ["AA-BB-CC-DD-EE-FF"],
-        })
+        resp = client.post(
+            "/api/devices/adopt",
+            json={
+                "profile_name": "nonexistent",
+                "site_id": "sid",
+                "device_macs": ["AA-BB-CC-DD-EE-FF"],
+            },
+        )
         assert resp.status_code == 404
 
 

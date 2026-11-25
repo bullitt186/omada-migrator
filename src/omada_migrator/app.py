@@ -1,8 +1,10 @@
 """FastAPI application — serves API + static UI (FR-12)."""
 
 import json as json_mod
+import re as _re
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -10,7 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .api_client import OmadaClient, OmadaApiError
+from .api_client import OmadaApiError, OmadaClient
 from .auth import (
     AuthStrategy,
     ClientCredentialsAuth,
@@ -19,17 +21,17 @@ from .auth import (
 )
 from .config import ConfigStore
 from .diff import diff_resource
-from .quirks import apply_write_quirks, READ_EXTRA_PARAMS
+from .quirks import READ_EXTRA_PARAMS, apply_write_quirks
 from .registry import ResourceRegistry
 from .schema_meta import SchemaMeta
-from .snapshot import save_snapshot, load_snapshot
-from .spec_store import list_specs, get_spec_path, import_spec, delete_spec
+from .snapshot import load_snapshot, save_snapshot
+from .spec_store import delete_spec, get_spec_path, import_spec, list_specs
 from .write_engine import (
-    WriteOp,
-    OpType,
     IdMapper,
-    remap_references,
+    OpType,
     UnresolvedRefError,
+    WriteOp,
+    remap_references,
     split_payload_for_writes,
 )
 
@@ -113,14 +115,17 @@ async def get_connection(profile_name: str) -> OmadaClient:
     await auth.authenticate()
 
     client = OmadaClient(
-        http_client=http_client, auth=auth,
-        base_url=profile["url"], omadac_id=omadac_id,
+        http_client=http_client,
+        auth=auth,
+        base_url=profile["url"],
+        omadac_id=omadac_id,
     )
     _connections[profile_name] = (http_client, client)
     return client
 
 
 # --- Profile API (FR-1) ---
+
 
 class ProfileCreate(BaseModel):
     name: str
@@ -160,6 +165,7 @@ def delete_profile(name: str):
 
 # --- Site API (FR-2) ---
 
+
 @app.get("/api/profiles/{name}/sites")
 async def list_sites(name: str):
     client = await get_connection(name)
@@ -167,6 +173,7 @@ async def list_sites(name: str):
 
 
 # --- Controller info (version, API version) ---
+
 
 @app.get("/api/profiles/{name}/controller-info")
 async def get_controller_info(name: str):
@@ -203,6 +210,7 @@ async def get_controller_info(name: str):
 
 # --- Schema metadata for UI ---
 
+
 @app.get("/api/schema-meta")
 def get_schema_metadata():
     """Return human-readable descriptions for resource keys and fields."""
@@ -211,6 +219,7 @@ def get_schema_metadata():
 
 
 # --- Spec management ---
+
 
 @app.get("/api/specs")
 def list_available_specs():
@@ -235,7 +244,7 @@ def import_spec_file(req: SpecImportRequest):
         reload_spec()
         return {"status": "ok", **result}
     except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
 
 
 @app.delete("/api/specs/{name}")
@@ -315,18 +324,29 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
 
                 if entry.parent_params:
                     # Only attempt if we can resolve all parent params
-                    unsupported_params = [p for p in entry.parent_params if p not in PARENT_RESOLVERS]
+                    unsupported_params = [
+                        p for p in entry.parent_params if p not in PARENT_RESOLVERS
+                    ]
                     if unsupported_params:
                         resources[entry.key] = {
                             "status": "unsupported",
                             "error": f"Cannot resolve parent: {', '.join(unsupported_params)}",
                             "objects": [],
                         }
-                        yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "unsupported"})
+                        yield _sse_event(
+                            "progress",
+                            {
+                                "current": i + 1,
+                                "total": total,
+                                "key": entry.key,
+                                "status": "unsupported",
+                            },
+                        )
                         continue
 
                     # Resolve all parent params, then iterate all combinations
                     from itertools import product as iterproduct
+
                     param_values: list[list[tuple[str, str]]] = []
                     for param in entry.parent_params:
                         values = await resolve_parent_values(client, site_id, param)
@@ -335,12 +355,23 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                     # If any param resolves to empty, skip
                     if not all(param_values):
                         resources[entry.key] = {"status": "ok", "objects": []}
-                        yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "ok", "count": 0})
+                        yield _sse_event(
+                            "progress",
+                            {
+                                "current": i + 1,
+                                "total": total,
+                                "key": entry.key,
+                                "status": "ok",
+                                "count": 0,
+                            },
+                        )
                         continue
 
                     objects = []
                     for combo in iterproduct(*param_values):
-                        purl = url.replace("{omadacId}", client._omadac_id).replace("{siteId}", site_id)
+                        purl = url.replace("{omadacId}", client._omadac_id).replace(
+                            "{siteId}", site_id
+                        )
                         parent_info = {}
                         for param_name, param_val in combo:
                             purl = purl.replace("{" + param_name + "}", param_val)
@@ -349,9 +380,13 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                         try:
                             nested_extra = READ_EXTRA_PARAMS.get(entry.key)
                             if entry.is_list:
-                                items = await client.get_paginated(full_url, extra_params=nested_extra)
+                                items = await client.get_paginated(
+                                    full_url, extra_params=nested_extra
+                                )
                             else:
-                                item = await client.get_singleton(full_url, extra_params=nested_extra)
+                                item = await client.get_singleton(
+                                    full_url, extra_params=nested_extra
+                                )
                                 items = [item] if item else []
                             for obj in items:
                                 obj["_parents"] = parent_info
@@ -360,7 +395,16 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                             pass
 
                     resources[entry.key] = {"status": "ok", "objects": objects}
-                    yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "ok", "count": len(objects)})
+                    yield _sse_event(
+                        "progress",
+                        {
+                            "current": i + 1,
+                            "total": total,
+                            "key": entry.key,
+                            "status": "ok",
+                            "count": len(objects),
+                        },
+                    )
                     continue
 
                 url = url.replace("{omadacId}", client._omadac_id)
@@ -375,14 +419,29 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
                     objects = [obj] if obj else []
 
                 resources[entry.key] = {"status": "ok", "objects": objects}
-                yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "ok", "count": len(objects)})
+                yield _sse_event(
+                    "progress",
+                    {
+                        "current": i + 1,
+                        "total": total,
+                        "key": entry.key,
+                        "status": "ok",
+                        "count": len(objects),
+                    },
+                )
             except OmadaApiError as e:
                 status = "unsupported" if e.is_unsupported else "error"
                 resources[entry.key] = {"status": status, "error": str(e), "objects": []}
-                yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": status})
+                yield _sse_event(
+                    "progress",
+                    {"current": i + 1, "total": total, "key": entry.key, "status": status},
+                )
             except Exception as e:
                 resources[entry.key] = {"status": "error", "error": str(e), "objects": []}
-                yield _sse_event("progress", {"current": i + 1, "total": total, "key": entry.key, "status": "error"})
+                yield _sse_event(
+                    "progress",
+                    {"current": i + 1, "total": total, "key": entry.key, "status": "error"},
+                )
 
         # Fetch real PSK from SSID detail endpoint for WPA-Personal SSIDs
         ssid_key = "wireless-network/wlans/{wlanId}/ssids"
@@ -416,13 +475,13 @@ async def read_site_sse(profile_name: str, site_id: str, site_name: str = ""):
 
 # --- Snapshot management ---
 
+
 @app.get("/api/snapshots")
 def list_snapshots():
     if not SNAPSHOT_DIR.exists():
         return []
     return [
-        {"name": f.name, "path": str(f)}
-        for f in sorted(SNAPSHOT_DIR.glob("*.json"), reverse=True)
+        {"name": f.name, "path": str(f)} for f in sorted(SNAPSHOT_DIR.glob("*.json"), reverse=True)
     ]
 
 
@@ -444,6 +503,7 @@ def delete_snapshot(filename: str):
 
 
 # --- Diff (FR-5) ---
+
 
 class DiffRequest(BaseModel):
     source_snapshot: str
@@ -482,36 +542,56 @@ async def compute_diff(req: DiffRequest):
             entry = registry.get(key)
             if not entry or not entry.list_path:
                 results[key] = {"status": "skipped"}
-                yield _sse_event("diff_progress", {"current": i + 1, "total": total, "key": key, "status": "skipped"})
+                yield _sse_event(
+                    "diff_progress",
+                    {"current": i + 1, "total": total, "key": key, "status": "skipped"},
+                )
                 continue
 
             try:
                 if entry.parent_params:
-                    unsupported_params = [p for p in entry.parent_params if p not in PARENT_RESOLVERS]
+                    unsupported_params = [
+                        p for p in entry.parent_params if p not in PARENT_RESOLVERS
+                    ]
                     if unsupported_params:
-                        results[key] = {"status": "unsupported", "error": f"Cannot resolve: {unsupported_params}"}
-                        yield _sse_event("diff_progress", {"current": i + 1, "total": total, "key": key, "status": "unsupported"})
+                        results[key] = {
+                            "status": "unsupported",
+                            "error": f"Cannot resolve: {unsupported_params}",
+                        }
+                        yield _sse_event(
+                            "diff_progress",
+                            {"current": i + 1, "total": total, "key": key, "status": "unsupported"},
+                        )
                         continue
 
                     from itertools import product as iterproduct
+
                     target_objects = []
                     param_values = []
                     for param in entry.parent_params:
-                        values = await resolve_parent_values(target_client, req.target_site_id, param)
+                        values = await resolve_parent_values(
+                            target_client, req.target_site_id, param
+                        )
                         param_values.append([(param, v) for v in values])
 
                     if all(param_values):
                         for combo in iterproduct(*param_values):
-                            purl = entry.list_path.replace("{omadacId}", target_client._omadac_id).replace("{siteId}", req.target_site_id)
+                            purl = entry.list_path.replace(
+                                "{omadacId}", target_client._omadac_id
+                            ).replace("{siteId}", req.target_site_id)
                             for pn, pv in combo:
                                 purl = purl.replace("{" + pn + "}", pv)
                             full_url = f"{target_client._base_url}{purl}"
                             try:
                                 extra = READ_EXTRA_PARAMS.get(key)
                                 if entry.is_list:
-                                    items = await target_client.get_paginated(full_url, extra_params=extra)
+                                    items = await target_client.get_paginated(
+                                        full_url, extra_params=extra
+                                    )
                                 else:
-                                    item = await target_client.get_singleton(full_url, extra_params=extra)
+                                    item = await target_client.get_singleton(
+                                        full_url, extra_params=extra
+                                    )
                                     items = [item] if item else []
                                 for obj in items:
                                     obj["_parents"] = dict(combo)
@@ -521,25 +601,37 @@ async def compute_diff(req: DiffRequest):
                     else:
                         target_objects = []
                 else:
-                    url = entry.list_path.replace("{omadacId}", target_client._omadac_id).replace("{siteId}", req.target_site_id)
+                    url = entry.list_path.replace("{omadacId}", target_client._omadac_id).replace(
+                        "{siteId}", req.target_site_id
+                    )
                     full_url = f"{target_client._base_url}{url}"
                     extra = READ_EXTRA_PARAMS.get(key)
                     if entry.is_list:
-                        target_objects = await target_client.get_paginated(full_url, extra_params=extra)
+                        target_objects = await target_client.get_paginated(
+                            full_url, extra_params=extra
+                        )
                     else:
                         obj = await target_client.get_singleton(full_url, extra_params=extra)
                         target_objects = [obj] if obj else []
 
                 diff = diff_resource(src_data["objects"], target_objects)
                 results[key] = {"status": "ok", **diff}
-                yield _sse_event("diff_progress", {"current": i + 1, "total": total, "key": key, "status": "ok"})
+                yield _sse_event(
+                    "diff_progress", {"current": i + 1, "total": total, "key": key, "status": "ok"}
+                )
             except OmadaApiError as e:
                 status = "unsupported" if e.is_unsupported else "error"
                 results[key] = {"status": status, "error": str(e)}
-                yield _sse_event("diff_progress", {"current": i + 1, "total": total, "key": key, "status": status})
+                yield _sse_event(
+                    "diff_progress",
+                    {"current": i + 1, "total": total, "key": key, "status": status},
+                )
             except Exception as e:
                 results[key] = {"status": "error", "error": str(e)}
-                yield _sse_event("diff_progress", {"current": i + 1, "total": total, "key": key, "status": "error"})
+                yield _sse_event(
+                    "diff_progress",
+                    {"current": i + 1, "total": total, "key": key, "status": "error"},
+                )
 
         yield _sse_event("diff_done", results)
 
@@ -547,6 +639,7 @@ async def compute_diff(req: DiffRequest):
 
 
 # --- Write / Execute (FR-6, FR-7, FR-8, FR-9) ---
+
 
 class WriteRequest(BaseModel):
     target_profile: str
@@ -584,21 +677,24 @@ async def create_plan(req: WriteRequest):
         else:
             continue
 
-        url = url.replace("{omadacId}", target_client._omadac_id).replace("{siteId}", req.target_site_id)
+        url = url.replace("{omadacId}", target_client._omadac_id).replace(
+            "{siteId}", req.target_site_id
+        )
         full_url = f"{target_client._base_url}{url}"
 
-        plan_items.append({
-            "op_type": op_type.value,
-            "resource_key": op["resource_key"],
-            "object_name": op.get("object_name", "unnamed"),
-            "url": full_url,
-            "payload": payload,
-        })
+        plan_items.append(
+            {
+                "op_type": op_type.value,
+                "resource_key": op["resource_key"],
+                "object_name": op.get("object_name", "unnamed"),
+                "url": full_url,
+                "payload": payload,
+            }
+        )
 
     return {"plan": plan_items}
 
 
-import re as _re
 _PATH_PARAM_RE = _re.compile(r"\{([^}]+)\}")
 
 
@@ -611,12 +707,22 @@ def _replace_item_id(path: str, target_id: str) -> str:
     """
     if not target_id:
         return path
-    structural = {"omadacId", "siteId", "apMac", "switchMac", "gatewayMac",
-                  "deviceMac", "stackId", "wlanId", "portalId", "profileId"}
+    structural = {
+        "omadacId",
+        "siteId",
+        "apMac",
+        "switchMac",
+        "gatewayMac",
+        "deviceMac",
+        "stackId",
+        "wlanId",
+        "portalId",
+        "profileId",
+    }
     for m in _PATH_PARAM_RE.finditer(path):
         param = m.group(1)
         if param not in structural:
-            return path[:m.start()] + target_id + path[m.end():]
+            return path[: m.start()] + target_id + path[m.end() :]
     return path
 
 
@@ -631,22 +737,55 @@ async def execute_write_plan(req: WriteRequest):
 
         # Trigger backup on source before writing (if profile available)
         if req.source_profile:
-            yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup", "name": "Backing up source controller..."})
+            yield _sse_event(
+                "progress",
+                {
+                    "current": 0,
+                    "total": 0,
+                    "status": "backup",
+                    "name": "Backing up source controller...",
+                },
+            )
             try:
                 source_client = await get_connection(req.source_profile)
                 src_backup_url = f"{source_client._base_url}/openapi/v1/{source_client._omadac_id}/maintenance/backup/self-server"
                 await source_client.request("POST", src_backup_url, json={"retainUser": True})
-                yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_done", "name": "Source backup triggered"})
+                yield _sse_event(
+                    "progress",
+                    {
+                        "current": 0,
+                        "total": 0,
+                        "status": "backup_done",
+                        "name": "Source backup triggered",
+                    },
+                )
             except Exception as e:
-                yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_warn", "name": f"Source backup skipped: {e}"})
+                yield _sse_event(
+                    "progress",
+                    {
+                        "current": 0,
+                        "total": 0,
+                        "status": "backup_warn",
+                        "name": f"Source backup skipped: {e}",
+                    },
+                )
 
         # Trigger backup on target before writing
-        yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup", "name": "Backing up target controller..."})
+        yield _sse_event(
+            "progress",
+            {
+                "current": 0,
+                "total": 0,
+                "status": "backup",
+                "name": "Backing up target controller...",
+            },
+        )
         try:
             backup_url = f"{target_client._base_url}/openapi/v1/{target_client._omadac_id}/maintenance/backup/self-server"
             await target_client.request("POST", backup_url, json={"retainUser": True})
             # Poll until file appears (max 30s)
             import asyncio as _aio
+
             files_url = f"{target_client._base_url}/openapi/v1/{target_client._omadac_id}/maintenance/backup/files"
             for _ in range(6):
                 await _aio.sleep(5)
@@ -654,12 +793,23 @@ async def execute_write_plan(req: WriteRequest):
                     resp = await target_client.request("GET", files_url)
                     files = resp.get("result", {}).get("fileList", [])
                     if files:
-                        yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_done", "name": f"Backup saved: {files[0]['fileName']}"})
+                        yield _sse_event(
+                            "progress",
+                            {
+                                "current": 0,
+                                "total": 0,
+                                "status": "backup_done",
+                                "name": f"Backup saved: {files[0]['fileName']}",
+                            },
+                        )
                         break
                 except Exception:
                     pass
         except Exception as e:
-            yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_warn", "name": f"Backup skipped: {e}"})
+            yield _sse_event(
+                "progress",
+                {"current": 0, "total": 0, "status": "backup_warn", "name": f"Backup skipped: {e}"},
+            )
 
         # ponytail: resolve parent param values on target for nested creates
         _parent_cache: dict[str, list[str]] = {}
@@ -698,7 +848,9 @@ async def execute_write_plan(req: WriteRequest):
             else:
                 continue
 
-            url = url.replace("{omadacId}", target_client._omadac_id).replace("{siteId}", req.target_site_id)
+            url = url.replace("{omadacId}", target_client._omadac_id).replace(
+                "{siteId}", req.target_site_id
+            )
 
             # Resolve remaining parent params (e.g. {wlanId}) from target
             if entry.parent_params:
@@ -711,14 +863,16 @@ async def execute_write_plan(req: WriteRequest):
 
             full_url = f"{target_client._base_url}{url}"
 
-            ops_list.append(WriteOp(
-                op_type=op_type,
-                resource_key=op["resource_key"],
-                object_name=op.get("object_name", "unnamed"),
-                payload=payload,
-                url=full_url,
-                source_id=op.get("source_id"),
-            ))
+            ops_list.append(
+                WriteOp(
+                    op_type=op_type,
+                    resource_key=op["resource_key"],
+                    object_name=op.get("object_name", "unnamed"),
+                    payload=payload,
+                    url=full_url,
+                    source_id=op.get("source_id"),
+                )
+            )
 
         for op in req.operations:
             if op.get("source_id") and op.get("target_id"):
@@ -740,7 +894,9 @@ async def execute_write_plan(req: WriteRequest):
 
             for write_op in queue:
                 try:
-                    clean_payload = {k: v for k, v in write_op.payload.items() if not k.startswith("_")}
+                    clean_payload = {
+                        k: v for k, v in write_op.payload.items() if not k.startswith("_")
+                    }
                     remapped, unresolved = remap_references(clean_payload, mapper)
                     if unresolved:
                         raise UnresolvedRefError(unresolved[0])
@@ -756,7 +912,9 @@ async def execute_write_plan(req: WriteRequest):
                             split_ok = 0
                             split_errors = []
                             for ep_path, sub_payload in splits:
-                                ep_url = ep_path.replace("{omadacId}", target_client._omadac_id).replace("{siteId}", req.target_site_id)
+                                ep_url = ep_path.replace(
+                                    "{omadacId}", target_client._omadac_id
+                                ).replace("{siteId}", req.target_site_id)
                                 if entry.parent_params:
                                     for param in entry.parent_params:
                                         placeholder = "{" + param + "}"
@@ -768,8 +926,17 @@ async def execute_write_plan(req: WriteRequest):
                                 if "{ssidId}" in ep_url:
                                     ep_url = ep_url.replace("{ssidId}", target_id)
                                 if "{switchMac}" in ep_url:
-                                    ep_url = ep_url.replace("{switchMac}", write_op.payload.get("switchMac", ""))
-                                ep_url = _PATH_PARAM_RE.sub(lambda m: target_id if m.group(1) not in {"omadacId", "siteId"} else m.group(0), ep_url)
+                                    ep_url = ep_url.replace(
+                                        "{switchMac}", write_op.payload.get("switchMac", "")
+                                    )
+                                ep_url = _PATH_PARAM_RE.sub(
+                                    lambda m, target_id=target_id: (
+                                        target_id
+                                        if m.group(1) not in {"omadacId", "siteId"}
+                                        else m.group(0)
+                                    ),
+                                    ep_url,
+                                )
                                 full_ep = f"{target_client._base_url}{ep_url}"
                                 try:
                                     await target_client.patch(full_ep, sub_payload)
@@ -778,7 +945,9 @@ async def execute_write_plan(req: WriteRequest):
                                     ep_name = ep_path.rsplit("/", 1)[-1]
                                     split_errors.append(f"{ep_name}: {split_err}")
                             if split_errors:
-                                raise Exception(f"{split_ok}/{split_ok+len(split_errors)} sub-writes ok; failed: {'; '.join(split_errors)}")
+                                raise Exception(
+                                    f"{split_ok}/{split_ok + len(split_errors)} sub-writes ok; failed: {'; '.join(split_errors)}"
+                                )
                         else:
                             result = await target_client.update(write_op.url, remapped)
                     elif write_op.op_type == OpType.DELETE:
@@ -789,34 +958,59 @@ async def execute_write_plan(req: WriteRequest):
 
                     succeeded += 1
                     progress = True
-                    if write_op.op_type == OpType.CREATE and write_op.source_id and isinstance(result, dict) and "id" in result:
+                    if (
+                        write_op.op_type == OpType.CREATE
+                        and write_op.source_id
+                        and isinstance(result, dict)
+                        and "id" in result
+                    ):
                         mapper.add(write_op.resource_key, write_op.source_id, result["id"])
 
-                    yield _sse_event("progress", {
-                        "current": succeeded, "total": total, "pass": pass_num,
-                        "op": write_op.op_type.value, "name": write_op.object_name, "result": "ok",
-                    })
+                    yield _sse_event(
+                        "progress",
+                        {
+                            "current": succeeded,
+                            "total": total,
+                            "pass": pass_num,
+                            "op": write_op.op_type.value,
+                            "name": write_op.object_name,
+                            "result": "ok",
+                        },
+                    )
                 except UnresolvedRefError:
                     next_queue.append(write_op)
                 except Exception as e:
                     failures.append({"name": write_op.object_name, "reason": str(e)})
                     progress = True
-                    yield _sse_event("progress", {
-                        "current": succeeded, "total": total, "pass": pass_num,
-                        "op": write_op.op_type.value, "name": write_op.object_name, "result": "error", "error": str(e),
-                    })
+                    yield _sse_event(
+                        "progress",
+                        {
+                            "current": succeeded,
+                            "total": total,
+                            "pass": pass_num,
+                            "op": write_op.op_type.value,
+                            "name": write_op.object_name,
+                            "result": "error",
+                            "error": str(e),
+                        },
+                    )
 
                 # Rate limit: avoid overwhelming the controller
                 import asyncio as _aio2
+
                 await _aio2.sleep(0.2)
 
             if not progress:
                 for op in next_queue:
-                    failures.append({"name": op.object_name, "reason": "Unresolved reference after convergence"})
+                    failures.append(
+                        {"name": op.object_name, "reason": "Unresolved reference after convergence"}
+                    )
                 break
             queue = next_queue
 
-        yield _sse_event("done", {"succeeded": succeeded, "failed": len(failures), "failures": failures})
+        yield _sse_event(
+            "done", {"succeeded": succeeded, "failed": len(failures), "failures": failures}
+        )
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -847,7 +1041,7 @@ async def list_devices(profile_name: str, site_id: str):
         items = await client.get_paginated(url)
         return {"devices": items}
     except OmadaApiError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/api/devices/{profile_name}/{site_id}/pending")
@@ -861,7 +1055,7 @@ async def list_pending_devices(profile_name: str, site_id: str):
     except OmadaApiError as e:
         if e.is_unsupported:
             return {"devices": []}
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 # ponytail: these error codes still mean the device is freed from the controller
@@ -881,7 +1075,7 @@ async def forget_device(req: DeviceForgetRequest):
     except OmadaApiError as e:
         if e.error_code in _FORGET_OK_CODES:
             return {"status": "ok", "result": "forgotten (device reset skipped)"}
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/api/devices/{profile_name}/{site_id}/device-account")
@@ -895,7 +1089,7 @@ async def get_device_account(profile_name: str, site_id: str):
     except OmadaApiError as e:
         if e.is_unsupported:
             return {"status": "ok", "account": None}
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 class DeviceAccountUpdate(BaseModel):
@@ -914,7 +1108,7 @@ async def update_device_account(req: DeviceAccountUpdate):
         result = await client.update(url, {"username": req.username, "password": req.password})
         return {"status": "ok", "result": result}
     except OmadaApiError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @app.post("/api/devices/adopt")
@@ -931,7 +1125,7 @@ async def adopt_devices(req: DeviceAdoptRequest):
         result = await client.request("POST", url, json=payload)
         return {"status": "ok", "result": result.get("result")}
     except OmadaApiError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/api/devices/{profile_name}/{site_id}/adopt-result/{device_mac}")
@@ -943,10 +1137,11 @@ async def get_adopt_result(profile_name: str, site_id: str, device_mac: str):
         result = await client.request("GET", url)
         return {"status": "ok", "result": result.get("result")}
     except OmadaApiError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 # --- DHCP cutover / safe migration ---
+
 
 class DhcpToggleRequest(BaseModel):
     profile_name: str
@@ -962,7 +1157,7 @@ async def toggle_dhcp(req: DhcpToggleRequest):
     try:
         networks = await client.get_paginated(url)
     except OmadaApiError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
     toggled = []
     for net in networks:
@@ -999,6 +1194,7 @@ async def trigger_backup(req: BackupRequest):
         await client.request("POST", backup_url, json={"retainUser": True})
         # Wait for file to appear
         import asyncio as _aio3
+
         files_url = f"{client._base_url}/openapi/v1/{client._omadac_id}/maintenance/backup/files"
         for _ in range(6):
             await _aio3.sleep(5)
@@ -1013,18 +1209,25 @@ async def trigger_backup(req: BackupRequest):
     except OmadaApiError as e:
         if e.is_unsupported:
             return {"status": "unsupported", "error": str(e)}
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 # --- Resource registry info ---
+
 
 @app.get("/api/resources")
 def list_resources():
     registry = get_registry()
     return [
-        {"key": e.key, "is_list": e.is_list, "has_create": e.create_path is not None,
-         "has_update": e.update_path is not None, "has_delete": e.delete_path is not None,
-         "nested": e.parent_params is not None, "parent_params": e.parent_params}
+        {
+            "key": e.key,
+            "is_list": e.is_list,
+            "has_create": e.create_path is not None,
+            "has_update": e.update_path is not None,
+            "has_delete": e.delete_path is not None,
+            "nested": e.parent_params is not None,
+            "parent_params": e.parent_params,
+        }
         for e in registry.entries()
     ]
 

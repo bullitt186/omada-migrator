@@ -3,12 +3,12 @@
 import pytest
 
 from omada_migrator.write_engine import (
-    WritePlan,
-    WriteOp,
-    OpType,
     IdMapper,
-    remap_references,
+    OpType,
+    WriteOp,
+    WritePlan,
     execute_plan,
+    remap_references,
 )
 
 
@@ -80,6 +80,7 @@ class TestSplitPayload:
 
     def test_empty_split_map_returns_empty(self):
         from omada_migrator.write_engine import split_payload_for_writes
+
         assert split_payload_for_writes({"x": 1}, {}) == []
         assert split_payload_for_writes({"x": 1}, None) == []
 
@@ -87,13 +88,15 @@ class TestSplitPayload:
 class TestWritePlan:
     def test_plan_creation(self):
         plan = WritePlan()
-        plan.add(WriteOp(
-            op_type=OpType.CREATE,
-            resource_key="setting/lan/networks",
-            object_name="Office LAN",
-            payload={"name": "Office LAN", "subnet": "10.0.0.0/24"},
-            url="/openapi/v1/omadac/sites/s1/setting/lan/networks",
-        ))
+        plan.add(
+            WriteOp(
+                op_type=OpType.CREATE,
+                resource_key="setting/lan/networks",
+                object_name="Office LAN",
+                payload={"name": "Office LAN", "subnet": "10.0.0.0/24"},
+                url="/openapi/v1/omadac/sites/s1/setting/lan/networks",
+            )
+        )
         assert len(plan.ops) == 1
         assert plan.ops[0].op_type == OpType.CREATE
 
@@ -123,12 +126,25 @@ class TestRetryUntilStable:
 
         plan = WritePlan()
         # Add in reverse order to test convergence
-        plan.add(WriteOp(OpType.CREATE, "lan-networks", "Net-C",
-                         {"name": "Net-C", "networkId": "src_b"}, "/url"))
-        plan.add(WriteOp(OpType.CREATE, "lan-networks", "Net-B",
-                         {"name": "Net-B", "networkId": "src_a"}, "/url"))
-        plan.add(WriteOp(OpType.CREATE, "lan-networks", "Net-A",
-                         {"name": "Net-A"}, "/url"))
+        plan.add(
+            WriteOp(
+                OpType.CREATE,
+                "lan-networks",
+                "Net-C",
+                {"name": "Net-C", "networkId": "src_b"},
+                "/url",
+            )
+        )
+        plan.add(
+            WriteOp(
+                OpType.CREATE,
+                "lan-networks",
+                "Net-B",
+                {"name": "Net-B", "networkId": "src_a"},
+                "/url",
+            )
+        )
+        plan.add(WriteOp(OpType.CREATE, "lan-networks", "Net-A", {"name": "Net-A"}, "/url"))
 
         results = await execute_plan(plan, mock_execute, mapper)
         assert results["succeeded"] == 3
@@ -145,8 +161,15 @@ class TestRetryUntilStable:
         from omada_migrator.write_engine import UnresolvedRefError
 
         plan = WritePlan()
-        plan.add(WriteOp(OpType.CREATE, "lan-networks", "Broken",
-                         {"name": "Broken", "networkId": "never_exists"}, "/url"))
+        plan.add(
+            WriteOp(
+                OpType.CREATE,
+                "lan-networks",
+                "Broken",
+                {"name": "Broken", "networkId": "never_exists"},
+                "/url",
+            )
+        )
 
         results = await execute_plan(plan, mock_execute, mapper)
         assert results["succeeded"] == 0

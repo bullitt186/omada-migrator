@@ -1,8 +1,6 @@
 """Tests for the diff engine (FR-5, FR-7)."""
 
-import pytest
-
-from omada_migrator.diff import diff_objects, match_objects, DiffResult, DiffStatus
+from omada_migrator.diff import DiffStatus, diff_objects, match_objects
 
 
 class TestMatchObjects:
@@ -69,6 +67,7 @@ class TestDiffResult:
             {"id": "c", "name": "TargetOnly", "x": 1},
         ]
         from omada_migrator.diff import diff_resource
+
         results = diff_resource(source, target, key_fields=["name"])
         assert results["identical"] == 1
         assert results["differs"] == 1

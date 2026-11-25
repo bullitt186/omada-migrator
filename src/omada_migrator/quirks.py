@@ -54,7 +54,11 @@ def apply_write_quirks(resource_key: str, payload: dict[str, Any]) -> dict[str, 
             }
         # 6GHz (bit 2) requires WPA3-SAE; strip it for WPA2 SSIDs
         band = result.get("band", 0)
-        psk_ver = result.get("pskSetting", {}).get("versionPsk", 0) if isinstance(result.get("pskSetting"), dict) else 0
+        psk_ver = (
+            result.get("pskSetting", {}).get("versionPsk", 0)
+            if isinstance(result.get("pskSetting"), dict)
+            else 0
+        )
         if (band & 4) and result.get("security") == 3 and psk_ver != 4:
             result["band"] = band & ~4 or 3  # drop 6G bit; fallback to 2.4+5 if nothing left
         # Strip source IDs and internal fields that confuse the target

@@ -1,11 +1,8 @@
 """Tests for snapshot save/load (FR-4, TD-5)."""
 
 import json
-from pathlib import Path
 
-import pytest
-
-from omada_migrator.snapshot import save_snapshot, load_snapshot
+from omada_migrator.snapshot import load_snapshot, save_snapshot
 
 
 class TestSnapshot:

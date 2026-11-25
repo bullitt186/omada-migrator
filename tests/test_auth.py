@@ -7,7 +7,6 @@ import pytest
 import respx
 
 from omada_migrator.auth import (
-    AuthStrategy,
     ClientCredentialsAuth,
     WebSessionAuth,
 )
@@ -31,14 +30,17 @@ class TestClientCredentialsAuth:
     async def test_authenticate_success(self, base_url, omadac_id):
         token_url = f"{base_url}/openapi/authorize/token"
         respx.post(token_url).mock(
-            return_value=httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {
-                    "accessToken": "access123",
-                    "refreshToken": "refresh456",
-                    "expiresIn": 7200,
-                }
-            })
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errorCode": 0,
+                    "result": {
+                        "accessToken": "access123",
+                        "refreshToken": "refresh456",
+                        "expiresIn": 7200,
+                    },
+                },
+            )
         )
 
         auth = ClientCredentialsAuth(
@@ -58,14 +60,17 @@ class TestClientCredentialsAuth:
     @pytest.mark.asyncio
     async def test_decorate_request_adds_accesstoken_header(self, base_url, omadac_id):
         respx.post(f"{base_url}/openapi/authorize/token").mock(
-            return_value=httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {
-                    "accessToken": "mytoken",
-                    "refreshToken": "ref",
-                    "expiresIn": 7200,
-                }
-            })
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errorCode": 0,
+                    "result": {
+                        "accessToken": "mytoken",
+                        "refreshToken": "ref",
+                        "expiresIn": 7200,
+                    },
+                },
+            )
         )
         auth = ClientCredentialsAuth(
             base_url=base_url,
@@ -89,14 +94,17 @@ class TestClientCredentialsAuth:
 
         def handler(request):
             call_count["n"] += 1
-            return httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {
-                    "accessToken": f"access_{call_count['n']}",
-                    "refreshToken": f"refresh_{call_count['n']}",
-                    "expiresIn": 7200,
-                }
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "errorCode": 0,
+                    "result": {
+                        "accessToken": f"access_{call_count['n']}",
+                        "refreshToken": f"refresh_{call_count['n']}",
+                        "expiresIn": 7200,
+                    },
+                },
+            )
 
         respx.post(token_url).mock(side_effect=handler)
 
@@ -126,28 +134,43 @@ class TestClientCredentialsAuth:
             calls.append(dict(request.url.params))
             if len(calls) == 1:
                 # Initial auth
-                return httpx.Response(200, json={
-                    "errorCode": 0,
-                    "result": {"accessToken": "a1", "refreshToken": "r1", "expiresIn": 7200}
-                })
+                return httpx.Response(
+                    200,
+                    json={
+                        "errorCode": 0,
+                        "result": {"accessToken": "a1", "refreshToken": "r1", "expiresIn": 7200},
+                    },
+                )
             elif len(calls) == 2:
                 # Refresh attempt returns -44114
-                return httpx.Response(200, json={
-                    "errorCode": -44114,
-                    "msg": "token invalid",
-                })
+                return httpx.Response(
+                    200,
+                    json={
+                        "errorCode": -44114,
+                        "msg": "token invalid",
+                    },
+                )
             else:
                 # Fallback client_credentials
-                return httpx.Response(200, json={
-                    "errorCode": 0,
-                    "result": {"accessToken": "a_fresh", "refreshToken": "r_fresh", "expiresIn": 7200}
-                })
+                return httpx.Response(
+                    200,
+                    json={
+                        "errorCode": 0,
+                        "result": {
+                            "accessToken": "a_fresh",
+                            "refreshToken": "r_fresh",
+                            "expiresIn": 7200,
+                        },
+                    },
+                )
 
         respx.post(token_url).mock(side_effect=handler)
 
         auth = ClientCredentialsAuth(
-            base_url=base_url, omadac_id=omadac_id,
-            client_id="cid", client_secret="csecret",
+            base_url=base_url,
+            omadac_id=omadac_id,
+            client_id="cid",
+            client_secret="csecret",
         )
         async with httpx.AsyncClient() as client:
             auth.set_client(client)
@@ -166,10 +189,9 @@ class TestWebSessionAuth:
     async def test_authenticate_gets_csrf_token(self, base_url, omadac_id):
         login_url = f"{base_url}/{omadac_id}/api/v2/login"
         respx.post(login_url).mock(
-            return_value=httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {"token": "csrf_tok_123"}
-            })
+            return_value=httpx.Response(
+                200, json={"errorCode": 0, "result": {"token": "csrf_tok_123"}}
+            )
         )
 
         auth = WebSessionAuth(
@@ -189,15 +211,14 @@ class TestWebSessionAuth:
     async def test_decorate_request_adds_csrf_and_source(self, base_url, omadac_id):
         login_url = f"{base_url}/{omadac_id}/api/v2/login"
         respx.post(login_url).mock(
-            return_value=httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {"token": "csrf_abc"}
-            })
+            return_value=httpx.Response(200, json={"errorCode": 0, "result": {"token": "csrf_abc"}})
         )
 
         auth = WebSessionAuth(
-            base_url=base_url, omadac_id=omadac_id,
-            username="admin", password="pw",
+            base_url=base_url,
+            omadac_id=omadac_id,
+            username="admin",
+            password="pw",
         )
         async with httpx.AsyncClient() as client:
             auth.set_client(client)
@@ -215,16 +236,17 @@ class TestWebSessionAuth:
 
         def handler(request):
             calls["n"] += 1
-            return httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {"token": f"csrf_{calls['n']}"}
-            })
+            return httpx.Response(
+                200, json={"errorCode": 0, "result": {"token": f"csrf_{calls['n']}"}}
+            )
 
         respx.post(login_url).mock(side_effect=handler)
 
         auth = WebSessionAuth(
-            base_url=base_url, omadac_id=omadac_id,
-            username="admin", password="pw",
+            base_url=base_url,
+            omadac_id=omadac_id,
+            username="admin",
+            password="pw",
         )
         async with httpx.AsyncClient() as client:
             auth.set_client(client)
@@ -241,10 +263,9 @@ class TestOmadacIdDiscovery:
     @pytest.mark.asyncio
     async def test_discover_omadac_id(self, base_url):
         respx.get(f"{base_url}/api/info").mock(
-            return_value=httpx.Response(200, json={
-                "errorCode": 0,
-                "result": {"omadacId": "discovered_id_789"}
-            })
+            return_value=httpx.Response(
+                200, json={"errorCode": 0, "result": {"omadacId": "discovered_id_789"}}
+            )
         )
 
         from omada_migrator.auth import discover_omadac_id

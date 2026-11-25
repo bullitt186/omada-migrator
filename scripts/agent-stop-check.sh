@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 0
 [ -z "$(git status --porcelain)" ] && exit 0
 
 # The repository's fast check (lint, format check, type check, unit tests), as in AGENTS.md.
-FAST_CHECK="uv run --no-project --with-editable '.[dev]' pytest -q"
+FAST_CHECK="uv run --locked --extra dev ruff check . && uv run --locked --extra dev ruff format --check . && uv run --locked --extra dev mypy && uv run --locked --extra dev pytest -q"
 
 if ! out=$(bash -c "$FAST_CHECK" 2>&1); then
   printf 'Fast check failed. Fix it before stopping:\n%s\n' "$(printf '%s' "$out" | tail -40)" >&2
