@@ -137,9 +137,24 @@ class WebSessionAuth(AuthStrategy):
 
 
 async def discover_omadac_id(client: httpx.AsyncClient, base_url: str) -> str:
-    """Fusion: auto-discover omadacId via GET /api/info."""
-    resp = await client.get(f"{base_url.rstrip('/')}/api/info")
-    data = resp.json()
-    if data.get("errorCode") != 0:
-        raise AuthError(f"Failed to discover omadacId: {data.get('msg')}")
-    return data["result"]["omadacId"]
+    """Fusion: auto-discover omadacId via GET /api/info (tries port 443 fallback if base includes a port)."""
+    base = base_url.rstrip("/")
+    for url in _info_urls(base):
+        try:
+            resp = await client.get(url)
+            data = resp.json()
+            if data.get("errorCode") == 0:
+                return data["result"]["omadacId"]
+        except Exception:
+            continue
+    raise AuthError(f"Failed to discover omadacId from {base}")
+
+
+def _info_urls(base: str) -> list[str]:
+    urls = [f"{base}/api/info"]
+    # If base has a non-standard port, also try without it (fusion gateway on port 443)
+    import re as _re
+    m = _re.match(r"(https?://[^:/]+):\d+", base)
+    if m:
+        urls.append(f"{m.group(1)}/api/info")
+    return urls

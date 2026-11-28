@@ -650,8 +650,47 @@ async function activateDhcpCutover() {
   try {
     const r = await fetch(API + '/api/dhcp-toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({profile_name: targetProfile, site_id: targetSite, enable: true})});
     const d = await r.json();
-    logEl.innerHTML += `<div style="color:#00A870">Target DHCP enabled (${(d.toggled||[]).length} networks). Cutover complete!</div>`;
-  } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">Failed to enable target: ${e.message}</div>`; }
+    logEl.innerHTML += `<div style="color:#00A870">Target DHCP enabled (${(d.toggled||[]).length} networks).</div>`;
+  } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">Failed to enable target: ${e.message}</div>`; return; }
+
+  // Retry deferred DHCP reservations now that DHCP is enabled
+  const deferred = migrateState.dhcpDeferredOps || [];
+  if (deferred.length) {
+    logEl.innerHTML += `<div style="color:#5E696F">Retrying ${deferred.length} deferred DHCP reservation(s)...</div>`;
+    const ops = deferred.map(op => ({
+      resource_key: op.resource_key,
+      op_type: op.op,
+      object_name: op.name,
+      payload: op.payload,
+      source_id: op.source_id || null,
+    }));
+    try {
+      const resp = await fetch(API + '/api/execute', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({target_profile: targetProfile, target_site_id: targetSite, operations: ops, cutover_mode: 'active'})
+      });
+      let ok = 0, fail = 0;
+      const reader = resp.body.getReader(); const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const {done, value} = await reader.read(); if (done) break;
+        buf += dec.decode(value);
+        const evts = buf.split('\n\n'); buf = evts.pop();
+        for (const evt of evts) {
+          const dataLine = evt.split('\n').find(l => l.startsWith('data:'));
+          if (!dataLine) continue;
+          const evd = JSON.parse(dataLine.slice(5));
+          const evName = evt.match(/^event: (.+)/m)?.[1];
+          if (evName === 'done') { ok = evd.succeeded; fail = evd.failed; }
+        }
+      }
+      logEl.innerHTML += `<div style="color:${fail ? '#e8a300' : '#00A870'}">DHCP reservations: ${ok} created, ${fail} failed. Cutover complete!</div>`;
+      migrateState.dhcpDeferredOps = [];
+    } catch (e) { logEl.innerHTML += `<div style="color:#ff2954">DHCP retry failed: ${e.message}</div>`; }
+  } else {
+    logEl.innerHTML += `<div style="color:#00A870">Cutover complete!</div>`;
+  }
 }
 
 async function rollbackDhcp() {
@@ -1124,6 +1163,13 @@ document.getElementById('btn-m-execute').addEventListener('click', () => {
 
 function handleExecEvent(event, d) {
   if (event === 'progress') {
+    if (d.status && !d.op) {
+      const icon = d.status === 'backup_done' ? '✓' : d.status === 'backup_warn' ? '⚠' : '⌛';
+      document.getElementById('m-exec-label').textContent = `${icon} ${d.name || 'Preparing...'}`;
+      if (d.status === 'backup_done') document.getElementById('m-exec-log').innerHTML += `<div style="color:#00A870;padding:2px 0">${escHtml(d.name)}</div>`;
+      else if (d.status === 'backup_warn') document.getElementById('m-exec-log').innerHTML += `<div style="color:#e8a300;padding:2px 0">⚠ ${escHtml(d.name)}</div>`;
+      return;
+    }
     const pct = d.total > 0 ? Math.round((d.current / d.total) * 100) : 0;
     document.getElementById('m-exec-progress').style.width = pct + '%';
     document.getElementById('m-exec-progress').textContent = pct + '%';
@@ -1136,9 +1182,15 @@ function handleExecEvent(event, d) {
   } else if (event === 'done') {
     document.getElementById('m-exec-progress').style.width = '100%';
     document.getElementById('m-exec-progress').textContent = '100%';
-    document.getElementById('m-exec-label').textContent = `Done: ${d.succeeded} succeeded, ${d.failed} failed`;
+    const deferredCount = d.dhcp_deferred || 0;
+    const deferredSuffix = deferredCount ? `, ${deferredCount} DHCP-deferred` : '';
+    document.getElementById('m-exec-label').textContent = `Done: ${d.succeeded} succeeded, ${d.failed} failed${deferredSuffix}`;
     if (d.failures && d.failures.length) {
       document.getElementById('m-exec-log').innerHTML += '<hr style="border:none;border-top:1px solid #EBECED;margin:8px 0">' + d.failures.map(f => `<div style="color:#ff2954;padding:2px 0">✗ ${escHtml(f.name)}: ${escHtml(f.reason)}</div>`).join('');
+    }
+    if (deferredCount) {
+      document.getElementById('m-exec-log').innerHTML += `<div style="color:#e8a300;padding:2px 0">⏳ ${deferredCount} DHCP reservation(s) deferred — will retry after DHCP activation in Step 6</div>`;
+      migrateState.dhcpDeferredOps = d.dhcp_deferred_ops || [];
     }
     // Show navigation to next step
     const nav = document.getElementById('m-step3-nav');

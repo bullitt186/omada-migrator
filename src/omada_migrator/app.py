@@ -1,8 +1,22 @@
 """FastAPI application — serves API + static UI (FR-12)."""
 
+import logging
 import json as json_mod
 from pathlib import Path
 from typing import Any, AsyncGenerator
+
+_log_dir = Path(__file__).resolve().parent.parent.parent / "logs"
+_log_dir.mkdir(exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(_log_dir / "omada-migrator.log"),
+    ],
+    force=True,
+)
+logger = logging.getLogger(__name__)
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -19,7 +33,7 @@ from .auth import (
 )
 from .config import ConfigStore
 from .diff import diff_resource
-from .quirks import apply_write_quirks, READ_EXTRA_PARAMS
+from .quirks import apply_write_quirks, READ_EXTRA_PARAMS, SKIP_RESOURCES, SkipResource
 from .registry import ResourceRegistry
 from .schema_meta import SchemaMeta
 from .snapshot import save_snapshot, load_snapshot
@@ -568,11 +582,17 @@ async def create_plan(req: WriteRequest):
         if not entry:
             continue
 
+        if op["resource_key"] in SKIP_RESOURCES:
+            continue
+
         op_type = OpType(op["op_type"])
         payload = op.get("payload", {})
 
         # Apply quirks
-        payload = apply_write_quirks(op["resource_key"], payload)
+        try:
+            payload = apply_write_quirks(op["resource_key"], payload)
+        except SkipResource:
+            continue
 
         # Determine URL
         if op_type == OpType.CREATE and entry.create_path:
@@ -625,7 +645,13 @@ async def execute_write_plan(req: WriteRequest):
     """Execute a confirmed write plan with SSE progress (FR-8.3)."""
 
     async def generate() -> AsyncGenerator[str, None]:
-        target_client = await get_connection(req.target_profile)
+        logger.info("Execute started: target=%s site=%s ops=%d", req.target_profile, req.target_site_id, len(req.operations))
+        try:
+            target_client = await get_connection(req.target_profile)
+        except Exception as e:
+            logger.error("Execute failed to connect: %s", e)
+            yield _sse_event("done", {"succeeded": 0, "failed": 1, "failures": [{"name": "connection", "reason": str(e)}]})
+            return
         registry = get_registry()
         mapper = IdMapper()
 
@@ -636,8 +662,10 @@ async def execute_write_plan(req: WriteRequest):
                 source_client = await get_connection(req.source_profile)
                 src_backup_url = f"{source_client._base_url}/openapi/v1/{source_client._omadac_id}/maintenance/backup/self-server"
                 await source_client.request("POST", src_backup_url, json={"retainUser": True})
+                logger.info("Source backup triggered")
                 yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_done", "name": "Source backup triggered"})
             except Exception as e:
+                logger.warning("Source backup skipped: %s", e)
                 yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_warn", "name": f"Source backup skipped: {e}"})
 
         # Trigger backup on target before writing
@@ -645,20 +673,24 @@ async def execute_write_plan(req: WriteRequest):
         try:
             backup_url = f"{target_client._base_url}/openapi/v1/{target_client._omadac_id}/maintenance/backup/self-server"
             await target_client.request("POST", backup_url, json={"retainUser": True})
-            # Poll until file appears (max 30s)
+            # Poll until file appears (max 30s), send keepalives to prevent browser timeout
             import asyncio as _aio
             files_url = f"{target_client._base_url}/openapi/v1/{target_client._omadac_id}/maintenance/backup/files"
-            for _ in range(6):
-                await _aio.sleep(5)
+            for i in range(6):
+                await _aio.sleep(2)
+                yield ": keepalive\n\n"
+                await _aio.sleep(3)
                 try:
                     resp = await target_client.request("GET", files_url)
                     files = resp.get("result", {}).get("fileList", [])
                     if files:
+                        logger.info("Target backup saved: %s", files[0]['fileName'])
                         yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_done", "name": f"Backup saved: {files[0]['fileName']}"})
                         break
                 except Exception:
                     pass
         except Exception as e:
+            logger.warning("Target backup skipped: %s", e)
             yield _sse_event("progress", {"current": 0, "total": 0, "status": "backup_warn", "name": f"Backup skipped: {e}"})
 
         # ponytail: resolve parent param values on target for nested creates
@@ -672,14 +704,58 @@ async def execute_write_plan(req: WriteRequest):
             values = _parent_cache[param]
             return values[0] if values else None
 
+        # Cache of target WAN port ID → portName for internet/ports-config remapping
+        _target_wan_ports: list[dict] | None = None
+
+        async def get_target_wan_ports() -> list[dict]:
+            nonlocal _target_wan_ports
+            if _target_wan_ports is None:
+                url = f"{target_client._base_url}/openapi/v1/{target_client._omadac_id}/sites/{req.target_site_id}/internet/ports-config"
+                try:
+                    data = await target_client.get_singleton(url)
+                    _target_wan_ports = (data or {}).get("wanPortsConfig", [])
+                except OmadaApiError:
+                    _target_wan_ports = []
+            return _target_wan_ports or []
+
+        async def remap_wan_port_ids(payload: dict[str, Any]) -> dict[str, Any]:
+            """Rewrite source portIds in wanPortsConfig to target portIds by portName match."""
+            wan_ports = payload.get("wanPortsConfig")
+            if not isinstance(wan_ports, list) or not wan_ports:
+                return payload
+            target_ports = await get_target_wan_ports()
+            # Build name→id map for target ports
+            target_by_name = {p.get("portName", ""): p.get("portId", "") for p in target_ports}
+            remapped = []
+            for i, port in enumerate(wan_ports):
+                port = dict(port)
+                port_name = port.get("portName", "")
+                target_id = target_by_name.get(port_name) or (target_ports[i]["portId"] if i < len(target_ports) else None)
+                if target_id:
+                    port["portId"] = target_id
+                remapped.append(port)
+            return {**payload, "wanPortsConfig": remapped}
+
         ops_list: list[WriteOp] = []
         for op in req.operations:
             entry = registry.get(op["resource_key"])
             if not entry:
                 continue
 
+            if op["resource_key"] in SKIP_RESOURCES:
+                logger.info("Skipping non-migratable resource: %s %s", op["op_type"], op["resource_key"])
+                continue
+
             op_type = OpType(op["op_type"])
-            payload = apply_write_quirks(op["resource_key"], op.get("payload", {}))
+            raw_payload = op.get("payload", {})
+            if not isinstance(raw_payload, dict):
+                logger.warning("Skipping op with non-dict payload: %s %s (got %s)", op["op_type"], op["resource_key"], type(raw_payload).__name__)
+                continue
+            try:
+                payload = apply_write_quirks(op["resource_key"], raw_payload)
+            except SkipResource as skip:
+                logger.info("Quirk skip: %s %s — %s", op["op_type"], op.get("object_name", ""), skip)
+                continue
             # Safe cutover: disable DHCP on lan-networks when creating disabled
             if req.cutover_mode == "create_disabled" and "lan-networks" in op["resource_key"]:
                 for dhcp_key in ("dhcpSetting", "dhcpSettings"):
@@ -731,6 +807,8 @@ async def execute_write_plan(req: WriteRequest):
         queue = list(ops_list)
         succeeded = 0
         failures: list[dict[str, Any]] = []
+        # Ops deferred because DHCP server is disabled (-34596); retry after dhcp-toggle
+        dhcp_deferred: list[dict[str, Any]] = []
         pass_num = 0
 
         while queue:
@@ -741,6 +819,9 @@ async def execute_write_plan(req: WriteRequest):
             for write_op in queue:
                 try:
                     clean_payload = {k: v for k, v in write_op.payload.items() if not k.startswith("_")}
+                    # WAN port config: remap source portIds to target portIds by port name/index
+                    if write_op.resource_key == "internet/ports-config":
+                        clean_payload = await remap_wan_port_ids(clean_payload)
                     remapped, unresolved = remap_references(clean_payload, mapper)
                     if unresolved:
                         raise UnresolvedRefError(unresolved[0])
@@ -798,6 +879,30 @@ async def execute_write_plan(req: WriteRequest):
                     })
                 except UnresolvedRefError:
                     next_queue.append(write_op)
+                except OmadaApiError as e:
+                    if e.error_code == -34596:
+                        # DHCP server not running (safe cutover: DHCP disabled) — defer, not fail
+                        dhcp_deferred.append({
+                            "name": write_op.object_name,
+                            "resource_key": write_op.resource_key,
+                            "op": write_op.op_type.value,
+                            "url": write_op.url,
+                            "payload": {k: v for k, v in write_op.payload.items() if not k.startswith("_")},
+                            "source_id": write_op.source_id,
+                        })
+                        progress = True
+                        yield _sse_event("progress", {
+                            "current": succeeded, "total": total, "pass": pass_num,
+                            "op": write_op.op_type.value, "name": write_op.object_name, "result": "deferred",
+                            "error": "DHCP server disabled — will retry after DHCP activation",
+                        })
+                    else:
+                        failures.append({"name": write_op.object_name, "reason": str(e)})
+                        progress = True
+                        yield _sse_event("progress", {
+                            "current": succeeded, "total": total, "pass": pass_num,
+                            "op": write_op.op_type.value, "name": write_op.object_name, "result": "error", "error": str(e),
+                        })
                 except Exception as e:
                     failures.append({"name": write_op.object_name, "reason": str(e)})
                     progress = True
@@ -816,7 +921,19 @@ async def execute_write_plan(req: WriteRequest):
                 break
             queue = next_queue
 
-        yield _sse_event("done", {"succeeded": succeeded, "failed": len(failures), "failures": failures})
+        logger.info("Execute done: %d succeeded, %d failed, %d dhcp-deferred", succeeded, len(failures), len(dhcp_deferred))
+        if failures:
+            for f in failures:
+                logger.warning("  FAILED: %s — %s", f["name"], f["reason"])
+        if dhcp_deferred:
+            logger.info("  DHCP-deferred (retry after dhcp-toggle): %d items", len(dhcp_deferred))
+        yield _sse_event("done", {
+            "succeeded": succeeded,
+            "failed": len(failures),
+            "failures": failures,
+            "dhcp_deferred": len(dhcp_deferred),
+            "dhcp_deferred_ops": dhcp_deferred,
+        })
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 

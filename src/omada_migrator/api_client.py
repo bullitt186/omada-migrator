@@ -7,7 +7,9 @@ import httpx
 from .auth import AuthStrategy
 
 # ponytail: error codes that mean "this feature/endpoint doesn't apply here"
-UNSUPPORTED_ERROR_CODES = (-1600, -44119, -35500, -35400, -35611, -35623)
+# -35724: WAN port does not support VPN (hardware capability difference)
+# Note: -34596 (DHCP server not exist) is NOT here — handled in execute loop as dhcp_deferred
+UNSUPPORTED_ERROR_CODES = (-1600, -44119, -35500, -35400, -35611, -35623, -35724)
 
 
 class OmadaApiError(Exception):

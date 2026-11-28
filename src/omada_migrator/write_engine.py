@@ -31,6 +31,7 @@ REFERENCE_LIST_FIELDS: dict[str, str] = {
     "networkIds": "lan-networks",
     "wanPortIds": "internet/ports-config",
     "ouiProfileIdList": "oui-profiles",
+    "servers": "vpn/client-to-site-vpn-servers",
 }
 
 
